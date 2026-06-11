@@ -1,0 +1,30 @@
+# ── Dependencies ──────────────────────────────────────────────
+node_modules/
+__pycache__/
+*.pyc
+
+# ── Environment ──────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Build output ─────────────────────────────────────────────
+.next/
+out/
+dist/
+build/
+
+# ── Python virtualenv ────────────────────────────────────────
+backend/venv/
+
+# ── IDE / OS ─────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Misc ─────────────────────────────────────────────────────
+*.log
+npm-debug.log*
