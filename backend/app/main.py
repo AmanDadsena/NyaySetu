@@ -9,6 +9,7 @@ API router.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import os
 from dotenv import load_dotenv
 
 load_dotenv() # Load variables from .env into os.environ
@@ -40,6 +41,15 @@ origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+# Add custom origins from environment if provided
+custom_origins = os.environ.get("CORS_ORIGINS", "")
+if custom_origins:
+    origins.extend([origin.strip() for origin in custom_origins.split(",") if origin.strip()])
+
+# Allow all origins if explicitly set or for public API use
+origins.append("*") # Allow all for now so your Vercel app works instantly
+
 
 app.add_middleware(
     CORSMiddleware,

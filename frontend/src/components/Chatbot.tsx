@@ -64,7 +64,7 @@ export function Chatbot() {
     try {
       const history = messages.filter((_, i) => i > 0);
 
-      const res = await fetch("http://localhost:8000/api/bot/chat", {
+      const res = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/bot/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history }),

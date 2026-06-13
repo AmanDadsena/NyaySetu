@@ -50,7 +50,7 @@ interface AnalyzeResponse {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const API_BASE = "http://localhost:8000";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "";
 const ACCEPTED_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

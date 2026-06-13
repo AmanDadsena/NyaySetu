@@ -15,7 +15,7 @@ export default function LawyersPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/lawyers")
+    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/lawyers")
       .then(res => res.json())
       .then(data => {
         setLawyers(data);
