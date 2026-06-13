@@ -1,3 +1,12 @@
+---
+title: Nyaysetu Backend
+emoji: 🌖
+colorFrom: indigo
+colorTo: gray
+sdk: docker
+pinned: false
+---
+
 # Nyaysetu
 
 A full-stack web application built with **Next.js** (frontend) and **FastAPI** (backend).
@@ -147,3 +156,4 @@ Browse available components at [ui.shadcn.com](https://ui.shadcn.com/docs/compon
 ## License
 
 MIT
+
