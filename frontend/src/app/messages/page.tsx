@@ -7,8 +7,8 @@ import { Send, Shield, Search, Loader2 } from "lucide-react";
 interface Message {
   id: number;
   content: string;
-  sender_id: int;
-  receiver_id: int;
+  sender_id: number;
+  receiver_id: number;
   case_id: number | null;
   created_at: string;
 }
