@@ -1,8 +1,15 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  MessageCircle,
+  X,
+  Send,
+  Bot,
+  User,
+  Sparkles,
+  Scale,
+} from "lucide-react";
 
 const POPULAR_FAQS = [
   "How can I get free legal aid in India (NALSA)?",
@@ -22,47 +29,61 @@ interface Message {
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: "model", content: "Hello! I am your Nyaysetu legal guide. How can I assist you today? Feel free to ask a question or select one of the popular FAQs below." }
+    {
+      role: "model",
+      content:
+        "Namaste! 🙏 I'm your **Nyaysetu** legal guide. Ask me anything about Indian law, your rights, or legal procedures — or pick a question below to get started.",
+    },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom of messages
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isOpen]);
 
+  // Focus the input when the window opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 350);
+    }
+  }, [isOpen]);
+
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
-    
+
     const userMsg: Message = { role: "user", content: text };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
 
     try {
-      // Exclude the very last message we just added from history, and the default welcome
-      const history = messages.filter((_, i) => i > 0); 
-      
+      const history = messages.filter((_, i) => i > 0);
+
       const res = await fetch("http://localhost:8000/api/bot/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          history: history,
-        }),
+        body: JSON.stringify({ message: text, history }),
       });
 
       if (!res.ok) throw new Error("Failed to communicate with bot");
-      
+
       const data = await res.json();
-      setMessages(prev => [...prev, { role: "model", content: data.reply }]);
+      setMessages((prev) => [...prev, { role: "model", content: data.reply }]);
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, { role: "model", content: "Sorry, I am having trouble connecting right now. Please try again later." }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "model",
+          content:
+            "Sorry, I'm having trouble connecting right now. Please try again later.",
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -75,94 +96,149 @@ export function Chatbot() {
     }
   };
 
+  /** Renders markdown-bold (**…**) as <strong> tags and handles line breaks */
+  const renderContent = (text: string) => {
+    // Split by newlines first
+    const lines = text.split("\n");
+    return lines.map((line, lineIdx) => {
+      // Render bold within each line
+      const parts = line.split(/(\*\*[^*]+\*\*)/g);
+      const rendered = parts.map((p, i) => {
+        if (p.startsWith("**") && p.endsWith("**")) {
+          return <strong key={i}>{p.slice(2, -2)}</strong>;
+        }
+        return <span key={i}>{p}</span>;
+      });
+      return (
+        <span key={lineIdx}>
+          {rendered}
+          {lineIdx < lines.length - 1 && <br />}
+        </span>
+      );
+    });
+  };
+
   return (
-    <div className="fixed bottom-6 right-6 z-50 animate-fade-in-up">
-      {/* Chat Window */}
-      {isOpen && (
-        <div className="absolute bottom-16 right-0 mb-4 w-[380px] h-[550px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden transition-all duration-300 transform origin-bottom-right">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-primary to-primary/90 text-white shadow-sm">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-white/20 rounded-full backdrop-blur-sm">
-                <Bot className="w-5 h-5" />
+    <div className="fixed bottom-5 right-5 z-50" id="chatbot-root">
+      {/* ── Chat Window ─────────────────────────────────────────── */}
+      <div
+        className={`absolute bottom-[76px] right-0 w-[400px] chatbot-window ${
+          isOpen ? "chatbot-window-open" : "chatbot-window-closed"
+        }`}
+        style={{ pointerEvents: isOpen ? "auto" : "none" }}
+      >
+        <div className="chatbot-glass flex flex-col h-[580px] rounded-3xl overflow-hidden">
+          {/* ── Header ────────────────────────────────────────── */}
+          <div className="chatbot-header relative px-5 py-4 flex items-center justify-between">
+            {/* Animated gradient overlay */}
+            <div className="absolute inset-0 chatbot-header-gradient" />
+
+            <div className="relative z-10 flex items-center gap-3">
+              {/* Breathing orb */}
+              <div className="chatbot-orb">
+                <Scale className="w-5 h-5 text-white drop-shadow-lg" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm tracking-wide">Nyaysetu Guide</h3>
-                <p className="text-[10px] text-primary-foreground/80 font-medium">Smart AI Legal Assistant</p>
+                <h3 className="font-bold text-[15px] text-white tracking-tight leading-tight">
+                  Nyaysetu Guide
+                </h3>
+                <p className="text-[11px] text-white/70 font-medium flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  AI Legal Assistant · Online
+                </p>
               </div>
             </div>
-            <button 
+
+            <button
               onClick={() => setIsOpen(false)}
-              className="p-1 hover:bg-white/20 rounded-full transition-colors"
+              className="relative z-10 p-1.5 rounded-full hover:bg-white/15 transition-colors"
+              aria-label="Close chat"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 text-white/90" />
             </button>
           </div>
 
-          {/* Chat History */}
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 space-y-4">
+          {/* ── Messages ──────────────────────────────────────── */}
+          <div className="flex-1 overflow-y-auto chatbot-messages px-4 py-4 space-y-3">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                key={i}
+                className={`chatbot-msg flex gap-2.5 ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
+                }`}
+                style={{ animationDelay: `${Math.min(i * 0.06, 0.4)}s` }}
+              >
                 {msg.role === "model" && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
-                    <Sparkles className="w-4 h-4 text-primary" />
+                  <div className="chatbot-avatar-bot shrink-0">
+                    <Sparkles className="w-3.5 h-3.5" />
                   </div>
                 )}
-                <div 
-                  className={`px-4 py-2.5 rounded-2xl max-w-[80%] text-sm leading-relaxed shadow-sm ${
-                    msg.role === "user" 
-                      ? "bg-primary text-white rounded-br-sm" 
-                      : "bg-white border border-gray-100 text-gray-800 rounded-bl-sm"
+                <div
+                  className={`chatbot-bubble ${
+                    msg.role === "user" ? "chatbot-bubble-user" : "chatbot-bubble-bot"
                   }`}
                 >
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  <div className="whitespace-pre-wrap leading-relaxed">
+                    {renderContent(msg.content)}
+                  </div>
                 </div>
                 {msg.role === "user" && (
-                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4 text-gray-600" />
+                  <div className="chatbot-avatar-user shrink-0">
+                    <User className="w-3.5 h-3.5" />
                   </div>
                 )}
               </div>
             ))}
-            
-            {/* Show FAQs if only 1 message exists (welcome) */}
+
+            {/* ── FAQ Chips ── */}
             {messages.length === 1 && (
-              <div className="flex flex-col gap-2 mt-4">
-                <p className="text-xs text-muted-foreground font-medium px-1">Frequently Asked Questions:</p>
+              <div className="flex flex-col gap-2 pt-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 px-1">
+                  Popular Questions
+                </p>
                 {POPULAR_FAQS.map((faq, i) => (
                   <button
                     key={i}
                     onClick={() => sendMessage(faq)}
-                    className="text-left text-xs text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl px-3 py-2 transition-colors duration-200"
+                    className="chatbot-faq-chip"
+                    style={{ animationDelay: `${0.5 + i * 0.08}s` }}
                   >
+                    <span className="text-primary/70 mr-1.5">→</span>
                     {faq}
                   </button>
                 ))}
               </div>
             )}
 
+            {/* ── Typing indicator ── */}
             {isLoading && (
-              <div className="flex gap-3 justify-start">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Bot className="w-4 h-4 text-primary" />
+              <div className="chatbot-msg flex gap-2.5 justify-start">
+                <div className="chatbot-avatar-bot shrink-0">
+                  <Bot className="w-3.5 h-3.5" />
                 </div>
-                <div className="px-4 py-3 rounded-2xl bg-white border border-gray-100 rounded-bl-sm flex items-center gap-1.5 shadow-sm">
-                  <span className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce"></span>
-                  <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></span>
-                  <span className="w-1.5 h-1.5 bg-primary/80 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></span>
+                <div className="chatbot-bubble chatbot-bubble-bot flex items-center gap-2">
+                  <div className="chatbot-typing-dots">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <span className="text-[11px] text-gray-400 font-medium">
+                    Thinking…
+                  </span>
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
-          <div className="p-3 bg-white border-t border-gray-100">
+          {/* ── Input Area ─────────────────────────────────────── */}
+          <div className="chatbot-input-bar">
             <div className="relative flex items-center">
               <input
+                ref={inputRef}
                 type="text"
-                placeholder="Ask a legal question..."
-                className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-gray-400"
+                placeholder="Ask a legal question…"
+                className="chatbot-input"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -171,23 +247,35 @@ export function Chatbot() {
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || isLoading}
-                className="absolute right-1.5 p-2 bg-primary hover:bg-primary/90 disabled:bg-gray-300 text-white rounded-full transition-colors flex items-center justify-center"
+                className="chatbot-send-btn"
+                aria-label="Send message"
               >
-                <Send className="w-4 h-4 ml-0.5" />
+                <Send className="w-4 h-4" />
               </button>
             </div>
+            <p className="text-[10px] text-center text-gray-400 mt-2 select-none">
+              Nyaysetu AI may make mistakes · Verify important legal info
+            </p>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Floating Action Button */}
-      <Button
-        size="icon"
+      {/* ── Floating Action Button ──────────────────────────────── */}
+      <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 rounded-full shadow-xl shadow-primary/30 hover:scale-105 transition-transform duration-300 bg-gradient-to-r from-primary to-primary/90"
+        className={`chatbot-fab ${isOpen ? "chatbot-fab-active" : ""}`}
+        aria-label="Toggle chatbot"
       >
-        {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
-      </Button>
+        {/* Pulse ring */}
+        {!isOpen && <span className="chatbot-fab-ring" />}
+        <span className="chatbot-fab-icon">
+          {isOpen ? (
+            <X className="w-6 h-6" />
+          ) : (
+            <MessageCircle className="w-6 h-6" />
+          )}
+        </span>
+      </button>
     </div>
   );
 }

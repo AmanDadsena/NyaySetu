@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Scale, Search, Star, MessageSquare } from "lucide-react";
+import { Scale, Search, MessageSquare } from "lucide-react";
 
 interface Lawyer {
   id: number;
@@ -57,12 +57,12 @@ export default function LawyersPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {lawyers.map(lawyer => (
               <div key={lawyer.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
-                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start justify-between mb-4">
                   <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center text-xl font-bold text-gray-600">
                     {lawyer.name.charAt(0)}
                   </div>
-                  <div className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-1 rounded-md text-xs font-medium">
-                    <Star className="w-3 h-3 fill-current" /> 4.9
+                  <div className="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md text-xs font-medium">
+                    <Scale className="w-3 h-3" /> Verified
                   </div>
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-1">{lawyer.name}</h3>

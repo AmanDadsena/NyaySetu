@@ -1,11 +1,6 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
@@ -173,9 +168,9 @@ export default function Home() {
   return (
     <div className="min-h-[calc(100vh-73px)] w-full bg-gray-50 p-4 lg:p-8 flex items-center justify-center animate-fade-in-up">
       <div className="h-[85vh] w-full max-w-7xl mx-auto rounded-[2rem] bg-white shadow-xl border border-gray-100 overflow-hidden">
-          <ResizablePanelGroup direction="horizontal" className="h-full items-stretch">
+          <div className="flex flex-col lg:flex-row h-full items-stretch">
             {/* ─── Left Pane: Input ─── */}
-            <ResizablePanel defaultSize={50} minSize={30} className="flex flex-col bg-background/30">
+            <div className="flex flex-col w-full lg:w-1/2 bg-background/30 border-b lg:border-b-0 lg:border-r border-border/20 overflow-y-auto">
             <div className="flex flex-col h-full p-5 lg:p-6 gap-4">
               {/* Section header */}
               <div className="flex flex-col gap-1 animate-fade-in-up">
@@ -352,15 +347,10 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </ResizablePanel>
-
-          <ResizableHandle
-            withHandle
-            className="w-1 bg-border/20 hover:bg-primary/40 transition-colors duration-300"
-          />
+          </div>
 
           {/* ─── Right Pane: Output ─── */}
-          <ResizablePanel defaultSize={50} minSize={30} className="flex flex-col bg-background/10 backdrop-blur-md">
+          <div className="flex flex-col w-full lg:w-1/2 bg-background/10 backdrop-blur-md overflow-y-auto">
             <div className="flex flex-col h-full p-5 lg:p-6 gap-4">
               {/* Section header */}
               <div className="flex flex-col gap-1 animate-fade-in-up">
@@ -560,8 +550,8 @@ export default function Home() {
                 )}
               </div>
             </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -38,10 +38,10 @@ export default function Home() {
           style={{ animationDelay: "0.2s", opacity: 0 }}
         >
           <div className="w-6 h-6 border border-gray-300 rounded flex items-center justify-center bg-gray-50">
-            <Star className="w-3.5 h-3.5 fill-black text-black" />
+            <Scale className="w-3.5 h-3.5 text-black" />
           </div>
           <span className="text-sm font-medium text-black">
-            4.9 rating from 10,000+ legal professionals
+            Open Source AI Legal Assistant for India
           </span>
         </div>
 
@@ -333,18 +333,18 @@ export default function Home() {
             Comprehensive Legal Knowledge Base
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 text-gray-700">
-            <div className="bg-gray-50 border border-gray-200 px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 shadow-sm hover:shadow-md hover:bg-white transition-all">
-              <Scale className="w-4 h-4 text-purple-500" /> The Constitution of India
-            </div>
-            <div className="bg-gray-50 border border-gray-200 px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 shadow-sm hover:shadow-md hover:bg-white transition-all">
-              <FileText className="w-4 h-4 text-blue-500" /> Supreme Court Judgments
-            </div>
-            <div className="bg-gray-50 border border-gray-200 px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 shadow-sm hover:shadow-md hover:bg-white transition-all">
-              <Shield className="w-4 h-4 text-green-500" /> Statutory Frameworks
-            </div>
-            <div className="bg-gray-50 border border-gray-200 px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 shadow-sm hover:shadow-md hover:bg-white transition-all">
-              <FileText className="w-4 h-4 text-orange-500" /> Central & State Acts
-            </div>
+            <a href="https://legislative.gov.in/constitution-of-india" target="_blank" rel="noopener noreferrer" className="bg-gray-50 border border-gray-200 px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 shadow-sm hover:shadow-md hover:bg-white hover:border-purple-300 transition-all cursor-pointer group">
+              <Scale className="w-4 h-4 text-purple-500 group-hover:scale-110 transition-transform" /> The Constitution of India
+            </a>
+            <a href="https://main.sci.gov.in/judgments" target="_blank" rel="noopener noreferrer" className="bg-gray-50 border border-gray-200 px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 shadow-sm hover:shadow-md hover:bg-white hover:border-blue-300 transition-all cursor-pointer group">
+              <FileText className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" /> Supreme Court Judgments
+            </a>
+            <a href="https://www.indiacode.nic.in" target="_blank" rel="noopener noreferrer" className="bg-gray-50 border border-gray-200 px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 shadow-sm hover:shadow-md hover:bg-white hover:border-green-300 transition-all cursor-pointer group">
+              <Shield className="w-4 h-4 text-green-500 group-hover:scale-110 transition-transform" /> Statutory Frameworks
+            </a>
+            <a href="https://www.indiacode.nic.in/handle/123456789/1362" target="_blank" rel="noopener noreferrer" className="bg-gray-50 border border-gray-200 px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 shadow-sm hover:shadow-md hover:bg-white hover:border-orange-300 transition-all cursor-pointer group">
+              <FileText className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" /> Central & State Acts
+            </a>
           </div>
         </div>
 

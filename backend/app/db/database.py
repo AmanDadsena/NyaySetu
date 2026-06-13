@@ -1,9 +1,14 @@
+import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from dotenv import load_dotenv
 
-DATABASE_URL = "sqlite+aiosqlite:///./nyaysetu.db"
+load_dotenv()
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./nyaysetu.db")
+
+# Removed echo=True to prevent SQL injection logs and info leak in production
+engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 Base = declarative_base()

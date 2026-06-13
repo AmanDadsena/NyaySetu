@@ -21,20 +21,20 @@ export default function AboutPage() {
       <div className="max-w-7xl mx-auto px-6 mb-32">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4 text-center divide-x divide-gray-100 bg-gray-50 rounded-3xl p-8 border border-gray-100 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
           <div>
-            <div className="text-4xl font-bold mb-2">10k+</div>
-            <div className="text-sm text-gray-500 font-medium">Legal Professionals</div>
+            <div className="text-4xl font-bold mb-2">1.4B+</div>
+            <div className="text-sm text-gray-500 font-medium">Citizens We Serve</div>
           </div>
           <div>
-            <div className="text-4xl font-bold mb-2">5M+</div>
-            <div className="text-sm text-gray-500 font-medium">Clauses Analyzed</div>
+            <div className="text-4xl font-bold mb-2">20L+</div>
+            <div className="text-sm text-gray-500 font-medium">Registered Advocates</div>
           </div>
           <div>
-            <div className="text-4xl font-bold mb-2">99%</div>
-            <div className="text-sm text-gray-500 font-medium">Accuracy Rate</div>
+            <div className="text-4xl font-bold mb-2">25</div>
+            <div className="text-sm text-gray-500 font-medium">High Courts</div>
           </div>
           <div>
             <div className="text-4xl font-bold mb-2">24/7</div>
-            <div className="text-sm text-gray-500 font-medium">Availability</div>
+            <div className="text-sm text-gray-500 font-medium">AI Availability</div>
           </div>
         </div>
       </div>
