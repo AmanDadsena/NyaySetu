@@ -18,9 +18,12 @@ from app.db.database import engine, Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize DB tables
+    # Initialize DB tables (Drop and recreate for schema changes)
     async with engine.begin() as conn:
+        print("Recreating database tables for new schema...")
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+        print("Database schema updated successfully.")
     yield
 
 app = FastAPI(
