@@ -37,7 +37,7 @@ export default function CasesPage() {
 
   const fetchCases = () => {
     const token = localStorage.getItem("token");
-    fetch("http://localhost:8000/api/cases", {
+    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/cases", {
       headers: token ? { "Authorization": `Bearer ${token}` } : {}
     })
       .then(res => res.json())
@@ -51,7 +51,7 @@ export default function CasesPage() {
   const handlePostCase = (e: React.FormEvent) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
-    fetch("http://localhost:8000/api/cases", {
+    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/cases", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",

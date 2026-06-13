@@ -53,7 +53,7 @@ export default function MessagesPage() {
     const token = localStorage.getItem("token");
     if (!token || !currentUser) return;
 
-    fetch("http://localhost:8000/api/cases", {
+    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/cases", {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -75,7 +75,7 @@ export default function MessagesPage() {
     
     if (!targetUserId) return; // Cannot fetch messages if no target user
 
-    fetch(`http://localhost:8000/api/chat/${targetUserId}`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/chat/${targetUserId}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -106,7 +106,7 @@ export default function MessagesPage() {
     
     if (!targetUserId) return;
 
-    fetch("http://localhost:8000/api/chat", {
+    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/chat", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
