@@ -310,7 +310,7 @@ export default function Home() {
                   Supports contracts, judgments, statutes & more
                 </p>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <Select value={language} onValueChange={setLanguage} disabled={isProcessing}>
+                  <Select value={language} onValueChange={(value) => setLanguage(value || "English")} disabled={isProcessing}>
                     <SelectTrigger className="w-[140px] h-10 rounded-full bg-background/50 border-border/50">
                       <SelectValue placeholder="Language" />
                     </SelectTrigger>
