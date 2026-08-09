@@ -24,7 +24,14 @@ import {
   BookOpen,
   Users,
   ChevronRight,
+  CalendarClock,
+  ListChecks,
+  Library,
 } from "lucide-react";
+import { VoiceButton } from "@/components/VoiceButton";
+import { SpeakButton } from "@/components/SpeakButton";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { LOCALE_LIST, normalizeLocale } from "@/lib/i18n/locales";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface ClauseItem {
@@ -42,6 +49,17 @@ interface AnalysisResult {
   key_entities: string[];
   risk_flags: string[];
   recommendations: string[];
+  /** Concrete next steps, in order. */
+  action_steps: string[];
+  /** Dates and periods found in the text that may be deadlines. */
+  key_dates: string[];
+  /** Statute passages the analysis was grounded in. */
+  sources: { title: string; citation: string; url: string }[];
+  /** ollama | gemini | heuristic */
+  provider: string;
+  /** True while a model is still improving this result in the background. */
+  refining: boolean;
+  refine_id: string | null;
 }
 
 interface AnalyzeResponse {
@@ -57,6 +75,67 @@ const ACCEPTED_TYPES = [
   "text/plain",
 ];
 const ACCEPT_STRING = ".pdf,.docx,.txt";
+
+// ── Risk summary ───────────────────────────────────────────────────────────
+/**
+ * Severity at a glance.
+ *
+ * A list of clauses tells you nothing about the shape of the document until
+ * you have read all of it. Encoding the distribution as width — not just a
+ * number — means "this contract is mostly high risk" lands before any reading
+ * happens. Counts stay visible because colour alone is not an accessible
+ * signal, and the segments carry text labels for screen readers.
+ */
+function RiskSummary({ clauses }: { clauses: ClauseItem[] }) {
+  const counts = {
+    high: clauses.filter((c) => c.risk_level === "high").length,
+    medium: clauses.filter((c) => c.risk_level === "medium").length,
+    low: clauses.filter((c) => c.risk_level === "low").length,
+  };
+  const total = clauses.length;
+  if (!total) return null;
+
+  const segments = [
+    { key: "high", label: "High", count: counts.high, bar: "bg-red-500", dot: "bg-red-500" },
+    { key: "medium", label: "Medium", count: counts.medium, bar: "bg-amber-500", dot: "bg-amber-500" },
+    { key: "low", label: "Low", count: counts.low, bar: "bg-emerald-500", dot: "bg-emerald-500" },
+  ].filter((s) => s.count > 0);
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-background/50 p-4">
+      <div className="flex items-baseline justify-between mb-2.5">
+        <h3 className="text-sm font-semibold">Risk profile</h3>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {total} clause{total === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      <div
+        className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted"
+        role="img"
+        aria-label={segments.map((s) => `${s.count} ${s.label} risk`).join(", ")}
+      >
+        {segments.map((s) => (
+          <div
+            key={s.key}
+            className={`${s.bar} risk-segment`}
+            style={{ width: `${(s.count / total) * 100}%` }}
+          />
+        ))}
+      </div>
+
+      <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">
+        {segments.map((s) => (
+          <span key={s.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className={`h-2 w-2 rounded-full ${s.dot}`} />
+            <span className="tabular-nums font-medium text-foreground">{s.count}</span>
+            {s.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ── Risk badge helper ──────────────────────────────────────────────────────
 function RiskBadge({ level }: { level: string }) {
@@ -84,8 +163,13 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [language, setLanguage] = useState("English");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Id of the refinement we still care about; a new run invalidates the old. */
+  const refineAbortRef = useRef<string | null>(null);
+
+  // The output language is the app-wide locale rather than page-local state, so
+  // the picker here and the one in the navbar can never disagree.
+  const { locale, meta, setLocale, t } = useLanguage();
 
   // ── File handling ──────────────────────────────────────────────────────
   const handleFileSelect = useCallback((file: File) => {
@@ -127,6 +211,36 @@ export default function Home() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
+  // ── Background refinement ──────────────────────────────────────────────
+  /**
+   * Poll until the model-enriched analysis is ready, then replace the
+   * deterministic one in place. Gives up quietly — the result already on
+   * screen is a complete, usable analysis, not a placeholder.
+   */
+  const pollForRefinement = useCallback(async (refineId: string) => {
+    const started = Date.now();
+    const deadline = 8 * 60 * 1000;
+
+    while (Date.now() - started < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      if (refineAbortRef.current !== refineId) return; // superseded by a new run
+
+      try {
+        const res = await fetch(`${API_BASE}/api/analyze/refine/${refineId}`);
+        if (!res.ok) return;
+        const json: { status: string; data: AnalysisResult | null } = await res.json();
+
+        if (json.status === "ready" && json.data) {
+          if (refineAbortRef.current === refineId) setResult(json.data);
+          return;
+        }
+        if (json.status === "gone") return;
+      } catch {
+        return; // network gone; keep what we have
+      }
+    }
+  }, []);
+
   // ── Process document ───────────────────────────────────────────────────
   const handleProcess = async () => {
     setIsProcessing(true);
@@ -141,7 +255,7 @@ export default function Home() {
       } else if (text.trim()) {
         formData.append("raw_text", text.trim());
       }
-      formData.append("language", language);
+      formData.append("language", meta.gemini);
 
       const res = await fetch(`${API_BASE}/api/analyze`, {
         method: "POST",
@@ -155,6 +269,16 @@ export default function Home() {
 
       const json: AnalyzeResponse = await res.json();
       setResult(json.data);
+
+      // The first response is the deterministic breakdown, which arrives in
+      // well under a second. A model then improves it behind the scenes; poll
+      // for that and swap it in without the reader ever waiting on a spinner.
+      if (json.data.refining && json.data.refine_id) {
+        refineAbortRef.current = json.data.refine_id;
+        pollForRefinement(json.data.refine_id);
+      } else {
+        refineAbortRef.current = null;
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "An unexpected error occurred";
       setError(message);
@@ -306,23 +430,37 @@ export default function Home() {
                 className="flex items-center justify-between pt-1 animate-fade-in-up"
                 style={{ animationDelay: "200ms" }}
               >
-                <p className="text-xs text-muted-foreground/70 hidden sm:block">
-                  Supports contracts, judgments, statutes & more
-                </p>
+                <div className="flex items-center gap-2">
+                  {/* Dictation — lets a user describe their document aloud
+                      instead of typing it in a script they may not write. */}
+                  <VoiceButton
+                    onTranscript={(spoken) =>
+                      setText((prev) => (prev ? `${prev} ${spoken}` : spoken))
+                    }
+                    onError={setError}
+                    idleLabelKey="analyze.dictate"
+                    showInterim
+                    disabled={isProcessing || !!uploadedFile}
+                  />
+                  <p className="text-xs text-muted-foreground/70 hidden sm:block">
+                    Supports contracts, judgments, statutes & more
+                  </p>
+                </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <Select value={language} onValueChange={(value) => setLanguage(value || "English")} disabled={isProcessing}>
+                  <Select
+                    value={locale}
+                    onValueChange={(value) => setLocale(normalizeLocale(value))}
+                    disabled={isProcessing}
+                  >
                     <SelectTrigger className="w-[140px] h-10 rounded-full bg-background/50 border-border/50">
-                      <SelectValue placeholder="Language" />
+                      <SelectValue placeholder={t("analyze.language")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="English">English</SelectItem>
-                      <SelectItem value="Hindi">Hindi</SelectItem>
-                      <SelectItem value="Marathi">Marathi</SelectItem>
-                      <SelectItem value="Gujarati">Gujarati</SelectItem>
-                      <SelectItem value="Tamil">Tamil</SelectItem>
-                      <SelectItem value="Telugu">Telugu</SelectItem>
-                      <SelectItem value="Bengali">Bengali</SelectItem>
-                      <SelectItem value="Kannada">Kannada</SelectItem>
+                      {LOCALE_LIST.map((item) => (
+                        <SelectItem key={item.code} value={item.code}>
+                          {item.native}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Button
@@ -335,12 +473,12 @@ export default function Home() {
                     {isProcessing ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing…
+                        {t("analyze.processing")}
                       </>
                     ) : (
                       <>
                         <Play className="mr-2 h-4 w-4" />
-                        Process Document
+                        {t("analyze.process")}
                       </>
                     )}
                   </Button>
@@ -403,11 +541,40 @@ export default function Home() {
                 ) : result ? (
                   /* ── Analysis Results ── */
                   <div className="space-y-6 animate-fade-in-up">
+                    {/* How this analysis was produced. Worth stating plainly:
+                        a reader deciding whether to trust it should know
+                        whether a model was involved at all. */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {result.refining ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Ready to read — improving it with the local model…
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                          <Shield className="h-3 w-3" />
+                          {result.provider === "heuristic"
+                            ? "Rule-based analysis · no model used"
+                            : result.provider === "ollama"
+                              ? "Analysed by a model on this machine"
+                              : "Analysed by a hosted model"}
+                        </span>
+                      )}
+                    </div>
+
+                    <RiskSummary clauses={result.clauses} />
+
                     {/* Summary card */}
                     <div className="rounded-xl bg-gradient-to-br from-primary/5 to-primary/[0.02] border border-primary/10 p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <BookOpen className="h-4 w-4 text-primary" />
-                        <h3 className="text-sm font-semibold">Summary</h3>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-4 w-4 text-primary" />
+                          <h3 className="text-sm font-semibold">Summary</h3>
+                        </div>
+                        {/* The summary is the one section a non-reader most
+                            needs; the AI has already written it in their
+                            language, so it can be played back directly. */}
+                        <SpeakButton text={result.summary} variant="labelled" />
                       </div>
                       <p className="text-sm leading-relaxed text-muted-foreground">
                         {result.summary}
@@ -472,6 +639,28 @@ export default function Home() {
                       </div>
                     )}
 
+                    {/* Dates and deadlines — extracted deterministically, so
+                        these are exactly what the document says, not a
+                        paraphrase. Missing one is what costs people cases. */}
+                    {result.key_dates.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <CalendarClock className="h-4 w-4 text-primary" />
+                          <h3 className="text-sm font-semibold">Dates &amp; deadlines</h3>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {result.key_dates.map((date, i) => (
+                            <span
+                              key={i}
+                              className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-xs tabular-nums text-foreground"
+                            >
+                              {date}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Risk Flags */}
                     {result.risk_flags.length > 0 && (
                       <div>
@@ -513,6 +702,57 @@ export default function Home() {
                             </li>
                           ))}
                         </ul>
+                      </div>
+                    )}
+
+                    {/* What to do next — ordered, because these are steps. */}
+                    {result.action_steps.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <ListChecks className="h-4 w-4 text-primary" />
+                          <h3 className="text-sm font-semibold">What to do next</h3>
+                        </div>
+                        <ol className="space-y-2">
+                          {result.action_steps.map((step, i) => (
+                            <li key={i} className="flex items-start gap-2.5 text-xs leading-relaxed">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold tabular-nums text-primary">
+                                {i + 1}
+                              </span>
+                              <span className="text-muted-foreground pt-0.5">{step}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+
+                    {/* Citations. These come from the statute corpus rather
+                        than the model, so every one resolves to real text the
+                        reader can open and check. */}
+                    {result.sources.length > 0 && (
+                      <div className="border-t border-border/50 pt-4">
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <Library className="h-4 w-4 text-muted-foreground" />
+                          <h3 className="text-sm font-semibold">Law referred to</h3>
+                        </div>
+                        <ul className="space-y-1.5">
+                          {result.sources.map((source, i) => (
+                            <li key={i} className="text-xs leading-relaxed">
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline underline-offset-2"
+                              >
+                                {source.citation}
+                              </a>
+                              <span className="text-muted-foreground/70"> — {source.title}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
+                          This is legal information, not legal advice. For advice on your
+                          situation, free legal aid is available on 15100.
+                        </p>
                       </div>
                     )}
                   </div>
