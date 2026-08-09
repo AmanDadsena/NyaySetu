@@ -14,7 +14,7 @@ from datetime import date
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.tools import documents, fees, forum, limitation, timeline
+from app.tools import citations, documents, fees, forum, holidays, limitation, timeline
 
 router = APIRouter(prefix="/api/tools", tags=["tools"])
 
@@ -139,3 +139,25 @@ async def compute_fee(request: FeeRequest) -> dict:
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return result.__dict__
+
+
+# ── Citations ───────────────────────────────────────────────────────────
+class CitationRequest(BaseModel):
+    text: str = Field(min_length=20, description="Judgment, brief or opinion text")
+
+
+@router.post("/citations")
+async def extract_citations(request: CitationRequest) -> dict:
+    result = citations.extract(request.text)
+    return {
+        "word_count": result.word_count,
+        "cases": [c.__dict__ for c in result.cases],
+        "statutes": [c.__dict__ for c in result.statutes],
+        "unresolved": result.unresolved,
+    }
+
+
+# ── Working days ────────────────────────────────────────────────────────
+@router.get("/calendar")
+async def calendar_status() -> dict:
+    return holidays.calendar_status()
