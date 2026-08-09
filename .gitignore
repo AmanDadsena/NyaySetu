@@ -28,3 +28,12 @@ Thumbs.db
 # ── Misc ─────────────────────────────────────────────────────
 *.log
 npm-debug.log*
+
+# ── Local database (never commit — contains user records) ────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Local debugging scratch (not part of the project) ─────────
+/analyze.html
+/check_url*.py

@@ -19,12 +19,20 @@ from app.db.database import engine, Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize DB tables (Drop and recreate for schema changes)
+    """
+    Create any missing tables on boot.
+
+    This deliberately does NOT drop existing tables. It used to, which meant
+    every restart — including every idle-wake on a hosted platform — silently
+    deleted all registered users, cases and messages. Set RESET_DB=1 to opt in
+    to the destructive behaviour locally when the schema changes.
+    """
     async with engine.begin() as conn:
-        print("Recreating database tables for new schema...")
-        await conn.run_sync(Base.metadata.drop_all)
+        if os.environ.get("RESET_DB") == "1":
+            print("RESET_DB=1 — dropping all tables before recreating them.")
+            await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-        print("Database schema updated successfully.")
+        print("Database schema ready.")
     yield
 
 app = FastAPI(
@@ -35,7 +43,12 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
-# CORS — allow the Next.js dev server (port 3000) and production origin
+# CORS — allow the Next.js dev server (port 3000) and production origins
+#
+# Note: browsers reject `Access-Control-Allow-Origin: *` together with
+# `allow_credentials=True`, so a wildcard list silently breaks any credentialed
+# request. Vercel also generates a fresh preview subdomain per deployment, so
+# production origins are matched by regex rather than enumerated by hand.
 # ---------------------------------------------------------------------------
 origins = [
     "http://localhost:3000",
@@ -47,13 +60,10 @@ custom_origins = os.environ.get("CORS_ORIGINS", "")
 if custom_origins:
     origins.extend([origin.strip() for origin in custom_origins.split(",") if origin.strip()])
 
-# Allow all origins if explicitly set or for public API use
-origins.append("*") # Allow all for now so your Vercel app works instantly
-
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
