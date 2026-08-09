@@ -14,14 +14,18 @@ Two things the arithmetic must get right:
   * Section 12(1) excludes the day from which the period runs, so a three-year
     period starting 10 March 2022 expires on 10 March 2025, not 9 March.
   * Where the last day is a court holiday, Section 4 lets you file on the next
-    working day. Court calendars are State-specific, so this is surfaced as a
-    note rather than silently added to the date.
+    working day. That is resolved exactly against the calendar in
+    `holidays.py`, and the result says how confident it is: a deployment that
+    has not supplied its court's notified list only knows about weekends and
+    the fixed national holidays.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
+
+from . import holidays
 
 
 @dataclass(frozen=True)
@@ -371,6 +375,10 @@ class LimitationResult:
     condonation_note: str = ""
     notes: list[str] = field(default_factory=list)
     related: list[str] = field(default_factory=list)
+    #: Last day the court is actually open, after Section 4. Equals `deadline`
+    #: unless it fell on a weekend or holiday.
+    filing_date: str | None = None
+    filing_date_confidence: str = "high"
 
 
 def _add_period(start: date, rule: LimitationRule) -> date:
@@ -444,11 +452,15 @@ def calculate(rule_id: str, event_date: date, today: date | None = None) -> Limi
         "The day the period runs from is excluded, per Section 12(1) of the "
         "Limitation Act, 1963."
     )
-    if not expired and deadline.weekday() >= 5:
+
+    # Section 4: if the last day is not a working day, the filing date moves
+    # forward. Resolved exactly rather than left as a caveat.
+    filing = holidays.resolve_filing_date(deadline)
+    if filing["moved"]:
         notes.append(
-            "The last day falls on a weekend. Section 4 of the Limitation Act lets "
-            "you file on the next day the court is open — but confirm the court's "
-            "calendar rather than relying on that."
+            f"{deadline.isoformat()} is not a working day "
+            f"({'; '.join(filing['reasons'])}), so the last day to file is "
+            f"{filing['filing_date']}. {filing['note']}"
         )
 
     return LimitationResult(
@@ -463,6 +475,8 @@ def calculate(rule_id: str, event_date: date, today: date | None = None) -> Limi
         expired=expired,
         days_overdue=abs(remaining) if expired else None,
         urgency=urgency,
+        filing_date=filing["filing_date"],
+        filing_date_confidence=filing["confidence"],
         condonable=rule.condonable,
         condonation_note=rule.condonation_note,
         notes=notes,
