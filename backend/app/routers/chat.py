@@ -5,7 +5,6 @@ from sqlalchemy import or_, and_
 from pydantic import BaseModel, constr
 from typing import List, Optional
 from datetime import datetime
-import html
 
 from app.db.database import get_db
 from app.db.models import Message, User, Case
@@ -49,12 +48,14 @@ async def send_message(
         if current_user.id not in [case.client_id, case.lawyer_id]:
             raise HTTPException(status_code=403, detail="Not authorized to message on this case")
 
-    sanitized_content = html.escape(message.content.strip())
-
+    # Store the message as the user typed it. Escaping on the way *in* means
+    # an apostrophe comes back as "&#x27;" and is rendered literally, because
+    # React already escapes on output — the value was being escaped twice.
+    # Sanitising at the boundary that actually renders is the right layer.
     new_message = Message(
         sender_id=current_user.id,
         receiver_id=message.receiver_id,
-        content=sanitized_content,
+        content=message.content.strip(),
         case_id=message.case_id
     )
     db.add(new_message)
