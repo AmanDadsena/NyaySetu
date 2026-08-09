@@ -4,9 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Scale, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +34,7 @@ export default function LoginPage() {
       }
 
       const data = await response.json();
-      localStorage.setItem("token", data.access_token);
+      signIn(data.access_token, data.user);
       router.push("/cases");
     } catch (err: any) {
       setError(err.message || "An error occurred during login.");
