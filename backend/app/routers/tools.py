@@ -14,7 +14,7 @@ from datetime import date
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.tools import documents, forum, limitation
+from app.tools import documents, fees, forum, limitation, timeline
 
 router = APIRouter(prefix="/api/tools", tags=["tools"])
 
@@ -84,6 +84,58 @@ async def list_templates() -> dict:
 async def generate_document(request: DocumentRequest) -> dict:
     try:
         result = documents.generate(request.template_id, request.data)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return result.__dict__
+
+
+# ── Case timeline ───────────────────────────────────────────────────────
+class TimelineRequest(BaseModel):
+    matter_id: str
+    start_date: date
+    known: dict[str, str] = Field(
+        default_factory=dict,
+        description="Optional dates for downstream anchors, keyed by anchor name",
+    )
+
+
+@router.get("/timeline")
+async def list_matter_types() -> dict:
+    return {"matters": timeline.catalogue()}
+
+
+@router.post("/timeline")
+async def build_timeline(request: TimelineRequest) -> dict:
+    try:
+        result = timeline.build(request.matter_id, request.start_date, request.known)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {
+        "matter_id": result.matter_id,
+        "label": result.label,
+        "start_label": result.start_label,
+        "start_date": result.start_date,
+        "entries": [e.__dict__ for e in result.entries],
+        "related": result.related,
+    }
+
+
+# ── Court fees ──────────────────────────────────────────────────────────
+class FeeRequest(BaseModel):
+    matter: str
+    value: float = 0.0
+    state: str | None = None
+
+
+@router.get("/fees")
+async def list_fee_matters() -> dict:
+    return fees.catalogue()
+
+
+@router.post("/fees")
+async def compute_fee(request: FeeRequest) -> dict:
+    try:
+        result = fees.calculate(request.matter, request.value, request.state)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return result.__dict__

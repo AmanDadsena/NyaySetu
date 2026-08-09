@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 load_dotenv() # Load variables from .env into os.environ
 
-from app.routers import analyze, health, auth, lawyers, cases, chat, bot, tools
+from app.routers import analyze, health, auth, lawyers, cases, chat, bot, tools, deadlines
 from app.db.database import engine, Base
 
 @asynccontextmanager
@@ -80,6 +80,7 @@ app.include_router(cases.router)
 app.include_router(chat.router)
 app.include_router(bot.router)
 app.include_router(tools.router)
+app.include_router(deadlines.router)
 
 
 @app.get("/")

@@ -22,12 +22,20 @@ import {
   MapPin,
   Printer,
   Scale,
+  CalendarDays,
+  IndianRupee,
+  BellRing,
+  Share2,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TimelineTool } from "@/components/toolkit/TimelineTool";
+import { FeesTool } from "@/components/toolkit/FeesTool";
+import { TrackerTool } from "@/components/toolkit/TrackerTool";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-type Tab = "deadline" | "forum" | "draft";
+type Tab = "deadline" | "forum" | "draft" | "timeline" | "fees" | "tracker";
 
 // ── Shared types ───────────────────────────────────────────────────────
 interface LimitationRule {
@@ -193,6 +201,7 @@ function DeadlineDial({ result }: { result: LimitationResult }) {
 // ── Page ───────────────────────────────────────────────────────────────
 export default function ToolkitPage() {
   const [tab, setTab] = useState<Tab>("deadline");
+  const [shared, setShared] = useState(false);
 
   // Deadline
   const [limRules, setLimRules] = useState<LimitationRule[]>([]);
@@ -215,6 +224,21 @@ export default function ToolkitPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Restore whatever was encoded in the link. A lawyer sends a client a URL
+  // and it opens on the right tab with the right selection already made —
+  // no account, no explaining which dropdown to touch.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get("t") as Tab | null;
+    if (t && ["deadline", "forum", "draft", "timeline", "fees", "tracker"].includes(t)) {
+      setTab(t);
+    }
+    if (params.get("rule")) setLimId(params.get("rule")!);
+    if (params.get("on")) setLimDate(params.get("on")!);
+    if (params.get("problem")) setForumId(params.get("problem")!);
+    if (params.get("value")) setClaimValue(params.get("value")!);
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -275,6 +299,64 @@ export default function ToolkitPage() {
     return [...map.entries()];
   };
 
+  /** Encode the current selection so the link reproduces this screen. */
+  const shareLink = async () => {
+    const params = new URLSearchParams({ t: tab });
+    if (tab === "deadline") {
+      if (limId) params.set("rule", limId);
+      if (limDate) params.set("on", limDate);
+    } else if (tab === "forum") {
+      if (forumId) params.set("problem", forumId);
+      if (claimValue) params.set("value", claimValue);
+    }
+    const url = `${window.location.origin}${window.location.pathname}?${params}`;
+    window.history.replaceState(null, "", url);
+    await navigator.clipboard.writeText(url);
+    setShared(true);
+    setTimeout(() => setShared(false), 2000);
+  };
+
+  /**
+   * WhatsApp is how this actually reaches people in India. Its formatting is
+   * not Markdown — *single* asterisks bold, and monospace blocks survive
+   * badly — so the text is rewritten rather than pasted verbatim.
+   */
+  const shareOnWhatsApp = () => {
+    const NL = String.fromCharCode(10);
+    let text = "";
+
+    if (tab === "deadline" && limResult) {
+      const head = "*" + limResult.label + "*";
+      const body = !limResult.has_limitation
+        ? "No limitation period applies."
+        : limResult.expired
+          ? "Deadline passed " + limResult.days_overdue + " days ago (" + limResult.deadline + ")."
+          : limResult.days_remaining + " days left. Deadline: " + limResult.deadline + ".";
+      text = [head, body, "_" + limResult.citation + "_"].join(NL + NL);
+    } else if (tab === "forum" && forumResult) {
+      const f = forumResult.forum;
+      text = [
+        "*" + f.name + "*",
+        "*Where:* " + f.where,
+        "*Fee:* " + f.fee,
+        "*Lawyer needed:* " + f.lawyer_needed,
+        "*Documents:*" + NL + f.documents.map((d) => "\u2022 " + d).join(NL),
+      ].join(NL + NL);
+    } else if (tab === "draft" && doc) {
+      // WhatsApp bolds with single asterisks, not double.
+      text = doc.body.replace(/\*\*/g, "*");
+    }
+
+    if (!text) return;
+    text += NL + NL + "via Nyaysetu \u2014 " + window.location.origin;
+    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank", "noopener");
+  };
+
+  const canShareResult =
+    (tab === "deadline" && !!limResult) ||
+    (tab === "forum" && !!forumResult) ||
+    (tab === "draft" && !!doc);
+
   const copyDoc = async () => {
     if (!doc) return;
     await navigator.clipboard.writeText(doc.body);
@@ -297,6 +379,9 @@ export default function ToolkitPage() {
     { id: "deadline", label: "Deadline", icon: CalendarClock, blurb: "How long you have left" },
     { id: "forum", label: "Where to file", icon: MapPin, blurb: "The right court or authority" },
     { id: "draft", label: "Draft a document", icon: FileText, blurb: "Notices and applications" },
+    { id: "timeline", label: "Case timeline", icon: CalendarDays, blurb: "Every stage, dated at once" },
+    { id: "fees", label: "Court fee", icon: IndianRupee, blurb: "What it costs to file" },
+    { id: "tracker", label: "My deadlines", icon: BellRing, blurb: "Saved and counting down" },
   ];
 
   return (
@@ -317,7 +402,7 @@ export default function ToolkitPage() {
         <div
           role="tablist"
           aria-label="Toolkit sections"
-          className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3"
+          className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3"
         >
           {tabs.map(({ id, label, icon: Icon, blurb }) => (
             <button
@@ -350,6 +435,29 @@ export default function ToolkitPage() {
             </button>
           ))}
         </div>
+
+        {canShareResult && (
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            <button
+              onClick={shareLink}
+              className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              {shared ? (
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              ) : (
+                <Share2 className="h-3.5 w-3.5" />
+              )}
+              {shared ? "Link copied" : "Copy shareable link"}
+            </button>
+            <button
+              onClick={shareOnWhatsApp}
+              className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-100"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Send on WhatsApp
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -755,6 +863,23 @@ export default function ToolkitPage() {
                 )}
               </SectionCard>
             )}
+          </div>
+        )}
+        {tab === "timeline" && (
+          <div className="animate-fade-in-up">
+            <TimelineTool onError={setError} />
+          </div>
+        )}
+
+        {tab === "fees" && (
+          <div className="animate-fade-in-up">
+            <FeesTool onError={setError} />
+          </div>
+        )}
+
+        {tab === "tracker" && (
+          <div className="animate-fade-in-up">
+            <TrackerTool onError={setError} />
           </div>
         )}
       </div>
