@@ -16,6 +16,7 @@ import type { LocaleCode } from "./locales";
 export const en = {
   // ── Navigation ──────────────────────────────────────────────────────────
   "nav.analyze": "Analyze",
+  "nav.toolkit": "Toolkit",
   "nav.lawyers": "Find Lawyer",
   "nav.cases": "Case Board",
   "nav.knowledge": "Knowledge Base",
@@ -81,6 +82,7 @@ type Dict = Partial<Record<TranslationKey, string>>;
 
 const hi: Dict = {
   "nav.analyze": "विश्लेषण",
+  "nav.toolkit": "उपकरण",
   "nav.lawyers": "वकील खोजें",
   "nav.cases": "केस बोर्ड",
   "nav.knowledge": "ज्ञान केंद्र",
@@ -139,6 +141,7 @@ const hi: Dict = {
 
 const mr: Dict = {
   "nav.analyze": "विश्लेषण",
+  "nav.toolkit": "साधने",
   "nav.lawyers": "वकील शोधा",
   "nav.cases": "केस बोर्ड",
   "nav.knowledge": "ज्ञान केंद्र",
@@ -197,6 +200,7 @@ const mr: Dict = {
 
 const gu: Dict = {
   "nav.analyze": "વિશ્લેષણ",
+  "nav.toolkit": "સાધનો",
   "nav.lawyers": "વકીલ શોધો",
   "nav.cases": "કેસ બોર્ડ",
   "nav.knowledge": "જ્ઞાન કેન્દ્ર",
@@ -255,6 +259,7 @@ const gu: Dict = {
 
 const ta: Dict = {
   "nav.analyze": "பகுப்பாய்வு",
+  "nav.toolkit": "கருவிகள்",
   "nav.lawyers": "வழக்கறிஞரைத் தேடு",
   "nav.cases": "வழக்குப் பலகை",
   "nav.knowledge": "அறிவுத் தளம்",
@@ -313,6 +318,7 @@ const ta: Dict = {
 
 const te: Dict = {
   "nav.analyze": "విశ్లేషణ",
+  "nav.toolkit": "సాధనాలు",
   "nav.lawyers": "న్యాయవాదిని కనుగొనండి",
   "nav.cases": "కేసు బోర్డు",
   "nav.knowledge": "జ్ఞాన కేంద్రం",
@@ -371,6 +377,7 @@ const te: Dict = {
 
 const bn: Dict = {
   "nav.analyze": "বিশ্লেষণ",
+  "nav.toolkit": "সরঞ্জাম",
   "nav.lawyers": "আইনজীবী খুঁজুন",
   "nav.cases": "কেস বোর্ড",
   "nav.knowledge": "জ্ঞান কেন্দ্র",
@@ -429,6 +436,7 @@ const bn: Dict = {
 
 const kn: Dict = {
   "nav.analyze": "ವಿಶ್ಲೇಷಣೆ",
+  "nav.toolkit": "ಪರಿಕರಗಳು",
   "nav.lawyers": "ವಕೀಲರನ್ನು ಹುಡುಕಿ",
   "nav.cases": "ಪ್ರಕರಣ ಫಲಕ",
   "nav.knowledge": "ಜ್ಞಾನ ಕೇಂದ್ರ",

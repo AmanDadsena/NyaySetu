@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: { href: string; key: TranslationKey }[] = [
   { href: "/analyze", key: "nav.analyze" },
+  { href: "/toolkit", key: "nav.toolkit" },
   { href: "/lawyers", key: "nav.lawyers" },
   { href: "/cases", key: "nav.cases" },
   { href: "/knowledge", key: "nav.knowledge" },
