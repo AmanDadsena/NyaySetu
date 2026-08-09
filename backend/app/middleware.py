@@ -6,13 +6,11 @@ from sqlalchemy.future import select
 import os
 from dotenv import load_dotenv
 
+from app.config import JWT_ALGORITHM, JWT_SECRET_KEY
 from app.db.database import get_db
 from app.db.models import User
 
 load_dotenv()
-
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "nyaysetu_secret_key_dev_only")
-ALGORITHM = "HS256"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -23,7 +21,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         user_id_str: str = payload.get("sub")
         if user_id_str is None:
             raise credentials_exception
