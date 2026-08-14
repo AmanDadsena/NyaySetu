@@ -52,27 +52,49 @@ _TOKEN_RE = re.compile(r"[\wऀ-ॿ઀-૿஀-௿"
 #: the failure the cross-lingual eval exists to catch.
 MIN_ABSOLUTE_BM25 = float(os.environ.get("NYAYSETU_MIN_BM25", "5.5"))
 
-#: How much of the blended score comes from BM25 rather than the embeddings,
-#: when a dense index is present.
+#: How much more BM25's ordering is trusted than the embeddings' when the two
+#: are fused. Not a share of a blended score — see the fusion in `search` for
+#: why that framing was the bug rather than the design.
 #:
-#: Swept against the full eval rather than guessed, and the two halves of that
-#: eval disagree — which is the whole reason the cross-lingual block exists.
-#: Lowering this monotonically improves English and monotonically harms the
-#: other seven languages:
+#: Swept against the full eval, patching this constant and calling the real
+#: `search` so the numbers describe shipped behaviour. The two halves of the
+#: eval disagree, which is the whole reason the cross-lingual block exists:
 #:
-#:     weight   English hit@1   cross-lingual hit@1
-#:     0.40         95.9%              76.8%
-#:     0.65         94.3%              85.7%
-#:     0.85         92.6%              91.1%
-#:     1.00         91.8%              91.1%     (BM25 only)
+#:     weight  k   English hit@1   cross-lingual hit@1
+#:      0.60   10      92.6%              78.6%
+#:      0.70   10      94.3%              75.0%
+#:      0.80    5      92.6%              91.1%
+#:      0.85    5      91.8%              91.1%
+#:      0.90   10      91.8%              91.1%
 #:
-#: 0.85 is the point that beats BM25-only on English while costing the other
-#: languages nothing. Going further trades roughly three points of Tamil,
-#: Kannada and Bengali accuracy for one point of English, and an English speaker
-#: asking about Indian law has alternatives that a Kannada speaker does not.
-#: Cross-lingual hit@3 is 100% at every setting, so what moves here is which of
-#: several relevant passages ranks first, not whether the law is found at all.
-LEXICAL_WEIGHT = float(os.environ.get("NYAYSETU_LEXICAL_WEIGHT", "0.85"))
+#: 0.80 with k=5 is the joint optimum: best cross-lingual accuracy available at
+#: any setting, with English a point better than tilting further towards BM25.
+#: Weights below 0.8 buy one or two points of English for fifteen of Tamil,
+#: Telugu, Bengali and Kannada — and an English speaker asking about Indian law
+#: has alternatives that a Kannada speaker does not. Cross-lingual hit@3 is 100%
+#: throughout, so what moves is which of several relevant passages ranks first,
+#: not whether the law is found at all.
+LEXICAL_WEIGHT = float(os.environ.get("NYAYSETU_LEXICAL_WEIGHT", "0.80"))
+
+#: Reciprocal rank fusion constant. The literature default is 60, tuned for web
+#: corpora of millions of documents where rank 5 and rank 50 are both plausible.
+#: Over 149 passages that flattens everything into a tie; a small k keeps the
+#: top few ranks meaningfully apart, which is the only region that matters when
+#: only three passages are ever returned.
+#: Swept alongside the weight: k=5 gives the best cross-lingual accuracy at
+#: every weight tried, and returns fewer citations per answer because the gap
+#: between rank 1 and rank 3 stays wide enough for the relative floor to bite.
+RRF_K = float(os.environ.get("NYAYSETU_RRF_K", "5"))
+
+#: A result must reach this fraction of the winner's fused score to come back at
+#: all. Guards against a third citation that is only there for being third.
+RELATIVE_FLOOR = float(os.environ.get("NYAYSETU_RELATIVE_FLOOR", "0.62"))
+
+#: Raw BM25 score treated as full lexical confidence. The median score of a
+#: question the eval answers correctly is around 16; below roughly 7.5 nothing
+#: in the eval set is a genuine hit. Used only for the absolute `confidence`
+#: reported alongside a result, never for ranking.
+STRONG_BM25 = float(os.environ.get("NYAYSETU_STRONG_BM25", "16.0"))
 
 #: Minimum cosine similarity for the dense index alone to admit a query as
 #: in-corpus, when there is no lexical evidence at all. Calibrated in the same
@@ -141,7 +163,14 @@ def tokenize(text: str) -> list[str]:
 @dataclass
 class RetrievedPassage:
     passage: Passage
+    #: Fused rank score in 0–1, best result 1.0. Answers "how do these compare
+    #: to each other" and nothing else — it is relative by construction, so a
+    #: perfect match and the best of a bad lot both score 1.0.
     score: float
+    #: Absolute confidence in 0–1: how strong the evidence is in its own right,
+    #: independent of what else came back. This is the one to threshold on when
+    #: deciding how much to trust an answer.
+    confidence: float = 0.0
     #: Which scorers fired, for debugging and for the /sources response.
     matched_by: tuple[str, ...] = ()
 
@@ -405,50 +434,77 @@ class Retriever:
         if not candidates:
             return []
 
-        # With no lexical signal anywhere, the blend has nothing to blend: every
-        # `lex` is zero, so a weighted score collapses to (1 - weight) x sem and
-        # can never clear `min_score`. At a lexical weight of 0.85 that silently
-        # closed the semantic-only route entirely — the very path embeddings are
-        # installed for. Rank on the semantic score directly instead; the
-        # weighting only means something when both signals are present.
-        semantic_only = lexical_max <= 0.0 and semantic is not None
+        # ── Fusion ──────────────────────────────────────────────────────
+        #
+        # The two scorers are not on the same scale and cannot be averaged.
+        # BM25 was normalised against the best match, so the top lexical result
+        # is 1.0 whether it scored 60 or 6; cosine similarity is absolute and
+        # tops out near 0.75. A weighted mean of the two therefore does not mean
+        # what it looks like it means: at a lexical weight of 0.85 the best
+        # lexical hit always scored at least 0.85 and a passage found only by
+        # embeddings could never exceed 0.15, whatever its similarity. The dense
+        # index could reorder passages that already shared vocabulary with the
+        # query and could not introduce one that did not — which is the entire
+        # reason it is installed.
+        #
+        # Reciprocal rank fusion avoids the problem by discarding the scores and
+        # keeping only each scorer's ordering, so there is no scale to
+        # reconcile. A passage ranked first by either scorer gets a strong
+        # contribution, and one ranked well by both beats one ranked well by
+        # either. `LEXICAL_WEIGHT` still says how much more BM25 is trusted, but
+        # it now tilts the fusion rather than capping one input.
+        lexical_order = sorted(sparse, key=lambda i: -sparse[i])
+        lexical_rank = {index: rank for rank, index in enumerate(lexical_order)}
 
-        scored: dict[int, tuple[float, float, float]] = {}
+        semantic_rank: dict[int, int] = {}
+        if semantic is not None:
+            semantic_order = sorted(candidates, key=lambda i: -semantic[i])
+            semantic_rank = {index: rank for rank, index in enumerate(semantic_order)}
+
+        fused: dict[int, float] = {}
+        evidence: dict[int, tuple[float, float]] = {}
         for index in candidates:
-            lex = (sparse.get(index, 0.0) / lexical_max) if lexical_max > 0 else 0.0
-            if semantic is not None:
-                # Cosine similarity of a normalised multilingual model sits
-                # roughly in 0.0–0.8 for relevant pairs; rescale before blending.
-                sem = max(0.0, min(1.0, semantic[index] / 0.75))
-                combined = sem if semantic_only else (
-                    LEXICAL_WEIGHT * lex + (1.0 - LEXICAL_WEIGHT) * sem
-                )
-            else:
-                sem = 0.0
-                combined = lex
-            scored[index] = (combined, lex, sem)
+            score = 0.0
+            if index in lexical_rank:
+                score += LEXICAL_WEIGHT / (RRF_K + lexical_rank[index])
+            if index in semantic_rank:
+                score += (1.0 - LEXICAL_WEIGHT) / (RRF_K + semantic_rank[index])
+            fused[index] = score
 
-        # An absolute floor alone is not enough. Scores are normalised against
-        # the best match, so on any query the runners-up sit at some fraction
-        # of 1.0 whether or not they are relevant — which is how a question
-        # about a landlord ends up citing the Food Security Act. Requiring a
-        # result to be in the same league as the winner cuts that off.
-        top = max(c for c, _, _ in scored.values())
-        floor = max(min_score, top * 0.62)
+            # Absolute evidence, kept separate from the ranking. `score` is
+            # relative and always peaks at 1.0; this says whether the winner was
+            # actually any good. STRONG_BM25 is the median raw score of a
+            # question the eval considers well answered.
+            lex_abs = min(1.0, sparse.get(index, 0.0) / STRONG_BM25)
+            sem_abs = (
+                max(0.0, min(1.0, semantic[index] / 0.75)) if semantic is not None else 0.0
+            )
+            evidence[index] = (lex_abs, sem_abs)
+
+        best_fused = max(fused.values())
+
+        # Relative floor: a result has to be in the same league as the winner.
+        # Without it a question about a landlord picks up the Food Security Act
+        # as a third citation simply for being third. RRF compresses the gaps
+        # between adjacent ranks, so this is calibrated against fused scores
+        # rather than the old blended ones.
+        floor = max(min_score, RELATIVE_FLOOR) * best_fused
 
         ranked: list[RetrievedPassage] = []
-        for index, (combined, lex, sem) in scored.items():
-            if combined < floor:
+        for index, score in fused.items():
+            if score < floor:
                 continue
+            lex_abs, sem_abs = evidence[index]
             matched: list[str] = []
-            if lex > 0.15:
+            if lex_abs > 0.10:
                 matched.append("keyword")
-            if semantic is not None and sem > 0.35:
+            if sem_abs > 0.35:
                 matched.append("semantic")
             ranked.append(
                 RetrievedPassage(
                     passage=self.corpus[index],
-                    score=round(combined, 4),
+                    score=round(score / best_fused, 4),
+                    confidence=round(max(lex_abs, sem_abs), 4),
                     matched_by=tuple(matched),
                 )
             )

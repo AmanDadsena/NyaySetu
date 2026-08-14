@@ -506,7 +506,11 @@ async def answer_question(
         )
         for p in passages[:3]
     ]
-    grounding = "high" if passages[0].score >= 0.55 else "medium"
+    # Confidence, not score. `score` is relative — the best result is 1.0 even
+    # when it is the best of a weak field — so thresholding it graded almost
+    # everything "high". `confidence` is absolute and says whether the evidence
+    # was actually strong.
+    grounding = "high" if passages[0].confidence >= 0.55 else "medium"
 
     prompt = _build_prompt(question, passages, language)
 
@@ -566,7 +570,11 @@ async def stream_answer(
         }
         for p in passages[:3]
     ]
-    grounding = "high" if passages[0].score >= 0.55 else "medium"
+    # Confidence, not score. `score` is relative — the best result is 1.0 even
+    # when it is the best of a weak field — so thresholding it graded almost
+    # everything "high". `confidence` is absolute and says whether the evidence
+    # was actually strong.
+    grounding = "high" if passages[0].confidence >= 0.55 else "medium"
 
     # Send citations before a single token of prose. They are already known, and
     # showing what the answer rests on while it is still being written is a
