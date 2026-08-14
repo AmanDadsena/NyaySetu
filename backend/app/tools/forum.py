@@ -341,7 +341,12 @@ RULES: list[ForumRule] = [
                 "in States that have adopted the Model Act.",
             ),
         ),
-        related=("tenant_rights",),
+        # A deposit the landlord will not return is a money claim, and the
+        # three-year clock under Article 55 runs whether or not the State has a
+        # Rent Authority to hear it. Leaving this empty meant the one dispute
+        # people actually bring here carried no deadline at all.
+        limitation=("suit_money",),
+        related=("tenant_rights", "deposit_recovery"),
     ),
     ForumRule(
         id="police_inaction",

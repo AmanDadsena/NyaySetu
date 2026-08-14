@@ -31,6 +31,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from . import document_actions
 from .retriever import RetrievedPassage, get_retriever
 
 # ── Schema ──────────────────────────────────────────────────────────────
@@ -44,6 +45,16 @@ class SourceRef(BaseModel):
     title: str
     citation: str
     url: str
+
+
+class ToolkitAction(BaseModel):
+    """Something the reader can do next, and the toolkit link that does it."""
+
+    kind: str
+    label: str
+    detail: str
+    href: str
+    prefilled: bool = False
 
 
 class AnalysisResult(BaseModel):
@@ -61,6 +72,12 @@ class AnalysisResult(BaseModel):
     key_dates: list[str] = []
     #: Statute passages the analysis was grounded in.
     sources: list[SourceRef] = []
+    #: A narrower reading of `document_type` where the text supports one —
+    #: "Cheque Bounce Notice" rather than "Legal Notice".
+    refined_type: str = ""
+    #: Deep links into the toolkit with the selection already made. This is what
+    #: turns "here is what your document is" into "here is what to do about it".
+    toolkit_actions: list[ToolkitAction] = []
     #: ollama | gemini | heuristic
     provider: str = "heuristic"
     #: True while a model is still enriching this result in the background.
@@ -493,6 +510,9 @@ def _prepare(text: str, language: str) -> dict[str, Any]:
         "law": law,
         "excerpt": excerpt,
         "language": language,
+        # Kept whole so the action mapper can look for signals that
+        # `select_salient` may have trimmed out of the excerpt.
+        "text": text,
         "sources": [
             SourceRef(
                 title=p.passage.title,
@@ -541,6 +561,14 @@ def _apply_facts(result: AnalysisResult, prepared: dict[str, Any], provider: str
     result.provider = provider
     result.refining = False
     result.refine_id = None
+
+    # Derived from the deterministic facts rather than from the model, so the
+    # suggestions cannot cite a deadline the model invented.
+    suggestions = document_actions.suggest(
+        result.document_type, prepared["text"], result.key_dates
+    )
+    result.refined_type = suggestions.refined_type
+    result.toolkit_actions = [ToolkitAction(**a.__dict__) for a in suggestions.actions]
 
 
 def _merge(portion: _ModelPortion, text: str, prepared: dict[str, Any]) -> AnalysisResult:

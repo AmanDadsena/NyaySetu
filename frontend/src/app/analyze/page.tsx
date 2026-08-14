@@ -28,7 +28,9 @@ import {
   CalendarClock,
   ListChecks,
   Library,
+  Wand2,
 } from "lucide-react";
+import Link from "next/link";
 import { VoiceButton } from "@/components/VoiceButton";
 import { SpeakButton } from "@/components/SpeakButton";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -61,6 +63,18 @@ interface AnalysisResult {
   /** True while a model is still improving this result in the background. */
   refining: boolean;
   refine_id: string | null;
+  /** A narrower reading of document_type where the text supports one. */
+  refined_type?: string;
+  /** Deep links into the toolkit with the selection already made. */
+  toolkit_actions?: ToolkitAction[];
+}
+
+interface ToolkitAction {
+  kind: string;
+  label: string;
+  detail: string;
+  href: string;
+  prefilled: boolean;
 }
 
 interface AnalyzeResponse {
@@ -729,6 +743,42 @@ export default function Home() {
                             </li>
                           ))}
                         </ol>
+                      </div>
+                    )}
+
+                    {/* The analysis stops being an essay here. Each of these
+                        opens the toolkit with the situation, rule or template
+                        already chosen — and the date filled in where the
+                        document gave us one to trust. */}
+                    {result.toolkit_actions && result.toolkit_actions.length > 0 && (
+                      <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Wand2 className="h-4 w-4 text-primary" />
+                          <h3 className="text-sm font-semibold">
+                            Act on this{result.refined_type ? ` ${result.refined_type.toLowerCase()}` : ""}
+                          </h3>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          {result.toolkit_actions.map((action, i) => (
+                            <Link
+                              key={i}
+                              href={action.href}
+                              className="block rounded-lg border border-border/60 bg-background p-3 transition-colors hover:border-primary/40 hover:bg-primary/[0.04]"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-semibold">{action.label}</span>
+                                {action.prefilled && (
+                                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                                    date filled in
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                                {action.detail}
+                              </p>
+                            </Link>
+                          ))}
+                        </div>
                       </div>
                     )}
 

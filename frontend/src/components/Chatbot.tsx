@@ -13,6 +13,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
+import { PassageReader } from "@/components/PassageReader";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { useSpeechSynthesis } from "@/lib/voice/useSpeechSynthesis";
@@ -34,6 +35,8 @@ const FAQ_CHIPS: { key: TranslationKey; topic: string }[] = [
 ];
 
 interface SourceRef {
+  /** Corpus passage id, used to fetch the exact text behind the citation. */
+  id?: string;
   title: string;
   citation: string;
   url: string;
@@ -72,6 +75,20 @@ export function Chatbot() {
   const inputRef = useRef<HTMLInputElement>(null);
   /** True when the pending question arrived by voice, so the reply is spoken. */
   const spokenQuestionRef = useRef(false);
+
+  /**
+   * Links consecutive questions so the backend can tell "asked again,
+   * differently" from "asked something new" — the signal that retrieval missed.
+   *
+   * Random per mounted conversation and held in memory only: never persisted,
+   * never sent anywhere else, and tied to no account. It exists to group two
+   * requests, and it is discarded when the page is.
+   */
+  const conversationKey = useRef(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : String(Math.random()).slice(2),
+  );
 
   const { isSpeaking, speak, stop: stopSpeaking } = useSpeechSynthesis({
     lang: meta.speech,
@@ -141,6 +158,7 @@ export function Chatbot() {
               history,
               language: meta.gemini,
               topic,
+              session: conversationKey.current,
             }),
           },
         );
@@ -337,6 +355,9 @@ export function Chatbot() {
                             <a href={source.url} target="_blank" rel="noopener noreferrer">
                               {source.citation}
                             </a>
+                            {source.id && (
+                              <PassageReader id={source.id} label={t("bot.readSection")} />
+                            )}
                           </li>
                         ))}
                       </ul>

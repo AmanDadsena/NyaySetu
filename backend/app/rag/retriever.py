@@ -405,6 +405,14 @@ class Retriever:
         if not candidates:
             return []
 
+        # With no lexical signal anywhere, the blend has nothing to blend: every
+        # `lex` is zero, so a weighted score collapses to (1 - weight) x sem and
+        # can never clear `min_score`. At a lexical weight of 0.85 that silently
+        # closed the semantic-only route entirely — the very path embeddings are
+        # installed for. Rank on the semantic score directly instead; the
+        # weighting only means something when both signals are present.
+        semantic_only = lexical_max <= 0.0 and semantic is not None
+
         scored: dict[int, tuple[float, float, float]] = {}
         for index in candidates:
             lex = (sparse.get(index, 0.0) / lexical_max) if lexical_max > 0 else 0.0
@@ -412,7 +420,9 @@ class Retriever:
                 # Cosine similarity of a normalised multilingual model sits
                 # roughly in 0.0–0.8 for relevant pairs; rescale before blending.
                 sem = max(0.0, min(1.0, semantic[index] / 0.75))
-                combined = LEXICAL_WEIGHT * lex + (1.0 - LEXICAL_WEIGHT) * sem
+                combined = sem if semantic_only else (
+                    LEXICAL_WEIGHT * lex + (1.0 - LEXICAL_WEIGHT) * sem
+                )
             else:
                 sem = 0.0
                 combined = lex
