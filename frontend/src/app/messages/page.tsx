@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { Send, Shield, Search, Loader2 } from "lucide-react";
+import { Send, Shield, Search, Loader2, Lock } from "lucide-react";
+import { useAuthGate } from "@/lib/auth/AuthGate";
 
 interface Message {
   id: number;
@@ -24,7 +24,7 @@ interface Case {
 }
 
 export default function MessagesPage() {
-  const router = useRouter();
+  const { requireAuth, signedIn } = useAuthGate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [cases, setCases] = useState<Case[]>([]);
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
@@ -33,21 +33,24 @@ export default function MessagesPage() {
   const [currentUser, setCurrentUser] = useState<{ id: number; role: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // No redirect on arrival. Someone who has not signed in should still be able
+  // to see what this page is for; the prompt comes when they try to send.
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
-      router.push("/login");
+      setCurrentUser(null);
+      setIsLoading(false);
       return;
     }
-    
+
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
       setCurrentUser({ id: parseInt(payload.sub), role: payload.role });
-    } catch (e) {
-      router.push("/login");
-      return;
+    } catch {
+      setCurrentUser(null);
+      setIsLoading(false);
     }
-  }, [router]);
+  }, [signedIn]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -99,7 +102,12 @@ export default function MessagesPage() {
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedCase || !currentUser) return;
+    if (!newMessage.trim()) return;
+    requireAuth(sendMessage, "Sign in to send this message.");
+  };
+
+  const sendMessage = () => {
+    if (!selectedCase || !currentUser) return;
 
     const token = localStorage.getItem("token");
     const targetUserId = currentUser.role === "client" ? selectedCase.lawyer_id : selectedCase.client_id;
@@ -133,7 +141,26 @@ export default function MessagesPage() {
     );
   }
 
-  const targetUserId = selectedCase 
+  // Conversations are between a named client and a named lawyer about a
+  // specific case, so there is genuinely nothing to show a visitor. Say what
+  // the page is for and let them sign in from here rather than bouncing them
+  // to a login form they did not ask for.
+  if (!signedIn) {
+    return (
+      <div className="min-h-[calc(100vh-73px)] bg-gray-50/50 px-4 py-16 animate-fade-in-up">
+        <div className="mx-auto max-w-lg rounded-3xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+          <Lock className="mx-auto mb-4 h-10 w-10 text-gray-300" />
+          <h1 className="mb-2 font-serif text-2xl font-bold text-slate-900">Discussions</h1>
+          <p className="text-gray-500">
+            Messages here are between a client and the lawyer working on their case,
+            and are private to the two of them. Sign in to see your conversations.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const targetUserId = selectedCase
     ? (currentUser?.role === "client" ? selectedCase.lawyer_id : selectedCase.client_id)
     : null;
 

@@ -36,11 +36,49 @@ _TOKEN_RE = re.compile(r"[\wऀ-ॿ઀-૿஀-௿"
                        r"ఀ-౿ঀ-৿ಀ-೿]+", re.UNICODE)
 
 #: Minimum raw BM25 score for a query to be considered in-corpus at all.
-#: Calibrated against eval.py: off-topic questions peak around 4.2 (incidental
-#: matches on words like "world" or "Mumbai"), genuine legal questions start
-#: above 5.2. Re-check this whenever the corpus grows substantially, since
-#: adding passages changes the idf distribution.
-MIN_ABSOLUTE_BM25 = float(os.environ.get("NYAYSETU_MIN_BM25", "4.8"))
+#:
+#: Re-calibrated when the corpus grew from 82 to 137 passages, which shifted the
+#: distribution enough that the previous floor of 4.8 began admitting "Tell me a
+#: joke" and "What time does the mall open?".
+#:
+#: The margin here is genuinely narrow and worth understanding before changing
+#: it. The binding constraint is not English prose but short questions in other
+#: scripts: "ভোক্তা অভিযোগ কোথায়" is three words, expands to a single English
+#: term through the lexicon, and scores 5.80 — while the highest-scoring
+#: off-topic question that the title rule below does not already catch is "What
+#: time does the mall open?" at 5.41. Everything rests in that gap. Raising this
+#: to 6.0 silently stopped answering consumer questions in Tamil, Telugu,
+#: Bengali and Kannada while every English metric stayed green, which is exactly
+#: the failure the cross-lingual eval exists to catch.
+MIN_ABSOLUTE_BM25 = float(os.environ.get("NYAYSETU_MIN_BM25", "5.5"))
+
+#: How much of the blended score comes from BM25 rather than the embeddings,
+#: when a dense index is present.
+#:
+#: Swept against the full eval rather than guessed, and the two halves of that
+#: eval disagree — which is the whole reason the cross-lingual block exists.
+#: Lowering this monotonically improves English and monotonically harms the
+#: other seven languages:
+#:
+#:     weight   English hit@1   cross-lingual hit@1
+#:     0.40         95.9%              76.8%
+#:     0.65         94.3%              85.7%
+#:     0.85         92.6%              91.1%
+#:     1.00         91.8%              91.1%     (BM25 only)
+#:
+#: 0.85 is the point that beats BM25-only on English while costing the other
+#: languages nothing. Going further trades roughly three points of Tamil,
+#: Kannada and Bengali accuracy for one point of English, and an English speaker
+#: asking about Indian law has alternatives that a Kannada speaker does not.
+#: Cross-lingual hit@3 is 100% at every setting, so what moves here is which of
+#: several relevant passages ranks first, not whether the law is found at all.
+LEXICAL_WEIGHT = float(os.environ.get("NYAYSETU_LEXICAL_WEIGHT", "0.85"))
+
+#: Minimum cosine similarity for the dense index alone to admit a query as
+#: in-corpus, when there is no lexical evidence at all. Calibrated in the same
+#: way as the BM25 floor and on the same eval: see `NEGATIVE_CASES`. This only
+#: applies when sentence-transformers is installed; with BM25 alone it is unused.
+MIN_DENSE_SIMILARITY = float(os.environ.get("NYAYSETU_MIN_DENSE", "0.45"))
 
 
 #: Suffixes stripped to a common root, longest first so "-ations" is tried
@@ -175,8 +213,18 @@ class _DenseIndex:
     """
     Optional multilingual embedding index.
 
-    Loaded lazily and never required: if sentence-transformers is missing, or
-    the model cannot be fetched, retrieval silently continues on BM25 alone.
+    Never required: if sentence-transformers is missing, or the model cannot be
+    fetched, retrieval silently continues on BM25 alone.
+
+    Building happens on a background thread, which matters more than it sounds.
+    The first call constructs a SentenceTransformer, and on a machine that has
+    not cached the weights that means a ~470MB download — synchronous, and with
+    no timeout worth relying on. Building inline made the *first user request*
+    wait for it, so installing the library to improve retrieval would instead
+    hang the first question someone asked. Now BM25 answers from the first
+    moment and the dense half attaches when it is genuinely ready; `available`
+    stays False until then, so every consumer degrades correctly by doing
+    nothing differently.
     """
 
     MODEL_NAME = os.environ.get(
@@ -188,22 +236,58 @@ class _DenseIndex:
         self._model = None
         self._matrix = None
 
-    def build(self, texts: list[str]) -> None:
+    #: How long a blocking build waits before giving up and letting the caller
+    #: proceed on BM25. Long enough to cover a first-run model download on a
+    #: reasonable connection, short enough that it cannot wedge a CI run.
+    BUILD_TIMEOUT_SECONDS = float(os.environ.get("NYAYSETU_DENSE_TIMEOUT", "300"))
+
+    def build(self, texts: list[str], block: bool = False) -> None:
+        """
+        Start building. Returns immediately unless `block` is set, which the
+        eval harness uses so a run measures the retrieval it means to measure
+        rather than whatever happened to be loaded when it started.
+
+        Even a blocking build is bounded. The first one may have to download the
+        weights, and on a slow link that is minutes — long enough that an
+        unbounded wait turns "run the eval" into an apparent hang with no output
+        to explain it.
+        """
         if os.environ.get("NYAYSETU_DISABLE_DENSE") == "1":
             print("[rag] Dense retrieval disabled by environment.")
             return
         try:
-            from sentence_transformers import SentenceTransformer  # type: ignore
+            from sentence_transformers import SentenceTransformer  # noqa: F401
         except ImportError:
             print("[rag] sentence-transformers not installed — BM25 only. "
                   "Install it to enable cross-lingual semantic search.")
             return
 
+        thread = threading.Thread(
+            target=self._build_now, args=(texts,), name="dense-index", daemon=True
+        )
+        thread.start()
+
+        if not block:
+            return
+
+        thread.join(self.BUILD_TIMEOUT_SECONDS)
+        if thread.is_alive():
+            print(f"[rag] Dense index still building after "
+                  f"{self.BUILD_TIMEOUT_SECONDS:.0f}s (first run downloads the "
+                  f"model). Continuing on BM25; re-run once it has cached.")
+
+    def _build_now(self, texts: list[str]) -> None:
         try:
-            self._model = SentenceTransformer(self.MODEL_NAME)
-            self._matrix = self._model.encode(
+            from sentence_transformers import SentenceTransformer  # type: ignore
+
+            model = SentenceTransformer(self.MODEL_NAME)
+            matrix = model.encode(
                 texts, normalize_embeddings=True, show_progress_bar=False
             )
+            # Publish both halves before flipping the flag, so a concurrent
+            # search never sees a model with no matrix to score against.
+            self._model = model
+            self._matrix = matrix
             self.available = True
             print(f"[rag] Dense index ready ({self.MODEL_NAME}).")
         except Exception as exc:  # model download / runtime failure
@@ -220,7 +304,7 @@ class _DenseIndex:
 
 
 class Retriever:
-    def __init__(self, corpus: list[Passage]):
+    def __init__(self, corpus: list[Passage], block_dense: bool = False):
         self.corpus = corpus
 
         # Index the searchable surface of each passage. Title, topics and the
@@ -228,6 +312,10 @@ class Retriever:
         # outranks a passage that merely mentions the words in passing.
         self.documents: list[list[str]] = []
         self.plain_texts: list[str] = []
+        #: Tokens from the passage's own name — what it is *about*, as opposed to
+        #: every word that happens to appear in it. Used to sanity-check a match
+        #: that rests on a single query term; see `search`.
+        self.label_tokens: list[set[str]] = []
         for passage in corpus:
             searchable = " ".join(
                 [
@@ -241,10 +329,13 @@ class Retriever:
             )
             self.documents.append(tokenize(searchable))
             self.plain_texts.append(f"{passage.title}. {passage.text}")
+            self.label_tokens.append(
+                set(tokenize(passage.title + " " + " ".join(passage.also_known_as)))
+            )
 
         self.bm25 = BM25(self.documents)
         self.dense = _DenseIndex()
-        self.dense.build(self.plain_texts)
+        self.dense.build(self.plain_texts, block=block_dense)
 
     def search(self, query: str, top_k: int = 4, min_score: float = 0.18) -> list[RetrievedPassage]:
         """
@@ -259,16 +350,47 @@ class Retriever:
 
         sparse = self.bm25.score(tokens)
         lexical_max = max(sparse.values()) if sparse else 0.0
-
-        # Absolute gate, applied *before* normalisation. Normalising makes the
-        # best match 1.0 whether it scored 14 or 0.9, so a question about
-        # cricket produces a confident-looking top result. Requiring real
-        # lexical evidence first is what makes the assistant able to say it
-        # does not know — the single most important behaviour for a legal tool.
-        if lexical_max < MIN_ABSOLUTE_BM25 and not self.dense.available:
-            return []
-
         semantic = self.dense.score(query)
+
+        # ── Is this question in the corpus at all? ──────────────────────
+        #
+        # Being able to say "I don't know" is the single most important
+        # behaviour for a legal tool, and it has to hold in both retrieval
+        # modes. An earlier version switched both guards off whenever a dense
+        # index was present, on the reasoning that embeddings would sort it out;
+        # what that actually did was remove every out-of-corpus check on exactly
+        # the deployments that have the most ways to produce a confident-looking
+        # wrong match. The evidence tests below are therefore evaluated
+        # independently and either one can admit a query.
+        #
+        # Lexical evidence: a real BM25 score, applied *before* normalisation.
+        # Normalising makes the best match 1.0 whether it scored 14 or 0.9, so a
+        # question about cricket otherwise produces a confident top result.
+        lexical_evidence = lexical_max >= MIN_ABSOLUTE_BM25
+
+        # ...but a match resting on a single query word is only believable when
+        # that word is what the passage is called. "Someone gave me a cheque
+        # that bounced" matches one term, and that term is the title of the
+        # cheque passage, so it is a real hit. "The best pizza in town" also
+        # matches one term — "town", from "Town Vending Committee" buried in the
+        # body of the street-vending passage — and scores *higher*, because
+        # rarity in a small corpus is not relevance. No score threshold
+        # separates those two; asking where the word appears does.
+        if lexical_evidence and sparse:
+            best = max(sparse, key=lambda i: sparse[i])
+            matched = set(tokens) & set(self.documents[best])
+            if len(matched) == 1 and not (matched & self.label_tokens[best]):
+                lexical_evidence = False
+
+        # Semantic evidence: a genuine embedding match. This is what lets a
+        # question phrased in words the corpus never uses still land, and it is
+        # the only route for a language the lexicon does not cover.
+        semantic_evidence = (
+            semantic is not None and max(semantic, default=0.0) >= MIN_DENSE_SIMILARITY
+        )
+
+        if not lexical_evidence and not semantic_evidence:
+            return []
 
         # Only documents with some lexical signal are candidates, unless a dense
         # index is present — a semantic match on a document sharing no vocabulary
@@ -290,7 +412,7 @@ class Retriever:
                 # Cosine similarity of a normalised multilingual model sits
                 # roughly in 0.0–0.8 for relevant pairs; rescale before blending.
                 sem = max(0.0, min(1.0, semantic[index] / 0.75))
-                combined = 0.55 * lex + 0.45 * sem
+                combined = LEXICAL_WEIGHT * lex + (1.0 - LEXICAL_WEIGHT) * sem
             else:
                 sem = 0.0
                 combined = lex
@@ -330,11 +452,18 @@ _retriever: Retriever | None = None
 _lock = threading.Lock()
 
 
-def get_retriever() -> Retriever:
-    """Build the index once per process, on first use."""
+def get_retriever(block_dense: bool = False) -> Retriever:
+    """
+    Build the index once per process, on first use.
+
+    `block_dense` waits for the embedding index before returning. Serving never
+    wants this — BM25 is ready immediately and dense attaches when it can — but
+    the eval does, because a run that started before the embeddings finished
+    would report BM25 numbers under a dense heading.
+    """
     global _retriever
     if _retriever is None:
         with _lock:
             if _retriever is None:
-                _retriever = Retriever(CORPUS)
+                _retriever = Retriever(CORPUS, block_dense=block_dense)
     return _retriever

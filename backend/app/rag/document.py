@@ -464,7 +464,7 @@ async def _gemini_structured(prompt: str) -> _ModelPortion | None:
 
             client = genai.Client(api_key=api_key)
             response = client.models.generate_content(
-                model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+                model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",

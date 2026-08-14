@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Scale, Search, MessageSquare } from "lucide-react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { useAuthGate } from "@/lib/auth/AuthGate";
 
 interface Lawyer {
   id: number;
@@ -13,6 +15,8 @@ interface Lawyer {
 
 export default function LawyersPage() {
   const t = useT();
+  const router = useRouter();
+  const { requireAuth } = useAuthGate();
   const [lawyers, setLawyers] = useState<Lawyer[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -85,7 +89,15 @@ export default function LawyersPage() {
                 <div className="text-sm text-gray-500 mb-4 h-10">
                   {lawyer.specialties || "General Practice"} • {lawyer.experience_years ?? 0} {t("lawyers.years")}
                 </div>
-                <button className="w-full flex items-center justify-center gap-2 bg-gray-50 hover:bg-black hover:text-white text-gray-900 font-medium py-2.5 rounded-xl transition-colors">
+                <button
+                  onClick={() =>
+                    requireAuth(
+                      () => router.push("/messages"),
+                      `Sign in to message ${lawyer.name}.`,
+                    )
+                  }
+                  className="w-full flex items-center justify-center gap-2 bg-gray-50 hover:bg-black hover:text-white text-gray-900 font-medium py-2.5 rounded-xl transition-colors"
+                >
                   <MessageSquare className="w-4 h-4" /> Message
                 </button>
               </div>

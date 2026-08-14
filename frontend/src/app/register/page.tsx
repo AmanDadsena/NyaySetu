@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Scale, Mail, Lock, User, Briefcase, Loader2, ArrowRight, Award, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { destinationAfterLogin, withNext } from "@/lib/auth/redirect";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -83,7 +84,7 @@ export default function RegisterPage() {
       // bouncing someone who just set a password to a login form.
       const data = await response.json();
       signIn(data.access_token, data.user);
-      router.push("/cases");
+      router.replace(destinationAfterLogin());
     } catch (err: any) {
       setError(err.message || "An error occurred during registration.");
     } finally {
@@ -374,7 +375,7 @@ export default function RegisterPage() {
 
         <p className="mt-8 text-center text-sm text-gray-500">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-black hover:underline">
+          <Link href={withNext("/login")} className="font-medium text-black hover:underline">
             Sign in
           </Link>
         </p>

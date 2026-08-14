@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
@@ -48,6 +49,19 @@ OLLAMA_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "15m")
 
 #: Resolved once per process: "" = not yet checked, None = no local model.
 _resolved_model: str | None | object = ...
+
+#: How many consecutive chat-budget timeouts before the local model is skipped,
+#: and for how long. Without this, a machine whose only model is too big for the
+#: budget pays the full wait on *every* turn to rediscover the same fact — the
+#: user waits 18s and then reads the extractive answer that was available
+#: immediately. Two strikes is enough to tell a slow model from an unlucky one,
+#: and the breaker reopens on its own so a machine that was merely busy, or that
+#: has since pulled a smaller model, recovers without a restart.
+OLLAMA_STRIKES_BEFORE_SKIP = int(os.environ.get("OLLAMA_STRIKES", "2"))
+OLLAMA_SKIP_SECONDS = float(os.environ.get("OLLAMA_SKIP_SECONDS", "600"))
+
+_ollama_strikes = 0
+_ollama_skip_until = 0.0
 
 
 @dataclass
@@ -79,14 +93,34 @@ def _build_prompt(question: str, passages: list[RetrievedPassage], language: str
 
     return f"""You are Nyaysetu's legal information assistant for India.
 
+WRITE THE ENTIRE REPLY IN {language.upper()}. Every sentence, including the
+opening line and any headings. The passages below are in English and must be
+translated as you use them; only statute names, section numbers and case names
+stay as they are. This instruction outranks everything else in this prompt: a
+correct answer in the wrong language is a failed answer, because the person
+asking chose {language} for a reason.
+
 Answer the user's question using ONLY the numbered passages below. These are the
 authoritative text; do not add provisions, section numbers, penalties or deadlines
-that do not appear in them. If the passages do not answer the question, say plainly
-that you do not have reliable information on it and suggest contacting a District
-Legal Services Authority — do not guess.
+that do not appear in them.
+
+Deciding whether the question can be answered at all is not your job. That decision
+has already been made: a scored retriever ran first, and when it finds nothing
+relevant the user is told so without ever reaching you. Passages below therefore
+always relate to the question, and your task is to phrase what they say — not to
+re-judge whether they are good enough.
+
+So never reply that you lack reliable information, and never refer the user to a
+District Legal Services Authority in place of an answer. A reply that disclaims and
+then quotes the statute anyway is the single worst outcome here: it reads as "I
+cannot help you" to someone who was one sentence away from the law that governs
+their problem. If the passages speak to the general position but not the exact
+detail asked, give the general position plainly and then say which specific point
+is not covered.
 
 Rules:
-- Write the entire reply in {language}.
+- Write the entire reply in {language}. This was stated above and is repeated
+  because smaller models drift back to English after the first sentence.
 - Keep statute names and section numbers exactly as they appear in the passages.
 - Lead with the direct answer, then the detail. Short sentences.
 - Expand abbreviations on first use; the reply may be read aloud.
@@ -110,6 +144,15 @@ async def _resolve_ollama_model() -> str | None:
     Hardcoding a model name means the chain silently fails on any machine that
     happens to have a different one pulled, so ask Ollama what it has. An
     explicit OLLAMA_MODEL always wins.
+
+    Among several, the **smallest** wins rather than the first one listed. This
+    is deliberate and is the opposite of the usual instinct. The model is not
+    reasoning about the law here — retrieval has already produced the statute,
+    and generation only rephrases it — so extra parameters buy almost nothing on
+    answer quality while costing linearly in latency. A 26B model on a laptop
+    took longer than the whole chat budget and fell through to the extractive
+    path on nearly every request, which meant the local model was pure delay. A
+    4B model answers the same question in a couple of seconds.
     """
     global _resolved_model
     if _resolved_model is not ...:
@@ -125,16 +168,21 @@ async def _resolve_ollama_model() -> str | None:
         async with httpx.AsyncClient(timeout=5) as client:
             response = await client.get(f"{OLLAMA_URL}/api/tags")
             response.raise_for_status()
-            installed = [m["name"] for m in response.json().get("models", [])]
+            models = response.json().get("models", [])
     except Exception as exc:
         print(f"[rag] No local Ollama at {OLLAMA_URL} ({type(exc).__name__}). "
               f"Falling through to hosted model, then extractive answers.")
         _resolved_model = None
         return None
 
-    if not installed:
+    if not models:
         _resolved_model = None
         return None
+
+    # On-disk size is the best available proxy for how long a reply will take;
+    # Ollama reports it for every model without needing to load one.
+    by_size = sorted(models, key=lambda m: m.get("size") or 0)
+    installed = [m["name"] for m in by_size]
 
     if OLLAMA_MODEL and OLLAMA_MODEL in installed:
         chosen = OLLAMA_MODEL
@@ -145,13 +193,24 @@ async def _resolve_ollama_model() -> str | None:
     else:
         chosen = installed[0]
 
-    print(f"[rag] Local model in use: {chosen}")
+    gib = (by_size[0].get("size") or 0) / 2**30
+    print(f"[rag] Local model in use: {chosen} ({gib:.1f} GiB, "
+          f"smallest of {len(installed)}).")
+    if gib > 8:
+        print(f"[rag] That is large for a {CHAT_BUDGET_SECONDS:.0f}s budget and will "
+              f"often time out into extractive answers. `ollama pull gemma3:4b` "
+              f"gives a model this chain can actually use.")
     _resolved_model = chosen
     return chosen
 
 
 async def _try_ollama(prompt: str) -> str | None:
     """Ask a locally running model. Returns None if Ollama isn't reachable."""
+    global _ollama_strikes, _ollama_skip_until
+
+    if time.monotonic() < _ollama_skip_until:
+        return None
+
     model = await _resolve_ollama_model()
     if not model:
         return None
@@ -175,13 +234,23 @@ async def _try_ollama(prompt: str) -> str | None:
             )
             response.raise_for_status()
             text = (response.json().get("response") or "").strip()
+            _ollama_strikes = 0
             return text or None
     except httpx.TimeoutException:
+        _ollama_strikes += 1
         print(
-            f"[rag] Local model exceeded the {CHAT_BUDGET_SECONDS:.0f}s chat budget; "
-            f"answering from the statute text instead. A 3B–4B model "
-            f"(ollama pull gemma3:4b) replies in a couple of seconds."
+            f"[rag] Local model exceeded the {CHAT_BUDGET_SECONDS:.0f}s chat budget "
+            f"({_ollama_strikes}/{OLLAMA_STRIKES_BEFORE_SKIP}); answering from the "
+            f"statute text instead. A 3B–4B model (ollama pull gemma3:4b) replies "
+            f"in a couple of seconds."
         )
+        if _ollama_strikes >= OLLAMA_STRIKES_BEFORE_SKIP:
+            _ollama_skip_until = time.monotonic() + OLLAMA_SKIP_SECONDS
+            print(
+                f"[rag] Skipping the local model for {OLLAMA_SKIP_SECONDS / 60:.0f} "
+                f"minutes so it stops costing every request "
+                f"{CHAT_BUDGET_SECONDS:.0f}s to reach the same answer."
+            )
         return None
     except Exception as exc:
         print(f"[rag] Local generation failed ({type(exc).__name__}): {exc}")
@@ -200,7 +269,10 @@ async def _try_gemini(prompt: str) -> str | None:
 
             client = genai.Client(api_key=api_key)
             response = client.models.generate_content(
-                model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+                # gemini-2.0-flash was decommissioned and now returns 404
+                # NOT_FOUND, which showed up in the logs as a generic provider
+                # failure. Override with GEMINI_MODEL when this one ages out too.
+                model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
                 contents=prompt,
                 config={"temperature": 0.2},
             )
@@ -340,6 +412,52 @@ def _topic_neighbours(pinned, limit: int = 2) -> list[RetrievedPassage]:
     ]
 
 
+#: Unicode ranges for the scripts the UI offers, used to check that a generated
+#: reply is actually in the language the user asked for.
+_SCRIPT_RANGES: dict[str, tuple[int, int]] = {
+    "Hindi": (0x0900, 0x097F),
+    "Marathi": (0x0900, 0x097F),
+    "Gujarati": (0x0A80, 0x0AFF),
+    "Tamil": (0x0B80, 0x0BFF),
+    "Telugu": (0x0C00, 0x0C7F),
+    "Bengali": (0x0980, 0x09FF),
+    "Kannada": (0x0C80, 0x0CFF),
+}
+
+#: Share of letters that must be in the target script. Well under half on
+#: purpose: a correct reply legitimately carries English statute names, section
+#: numbers and URLs ("Model Tenancy Act, 2021"), so the test is meant to catch a
+#: reply that ignored the language entirely, not one that quotes an Act.
+_MIN_TARGET_SCRIPT_SHARE = 0.25
+
+
+def _is_in_requested_language(reply: str, language: str) -> bool:
+    """
+    Check a generated reply is written in the script that was asked for.
+
+    Small local models follow a language instruction unreliably — a 4B model
+    asked for Hindi will often answer in English, and the user has no way to
+    retry into a different provider. Rather than trust the instruction, verify
+    the output and let the caller fall through to the next generator, which is
+    the same principle the rest of this module runs on: check, do not assume.
+    """
+    target = _SCRIPT_RANGES.get(language)
+    if target is None:  # English, or a language we cannot check
+        return True
+
+    low, high = target
+    letters = in_target = 0
+    for char in reply:
+        if not char.isalpha():
+            continue
+        letters += 1
+        if low <= ord(char) <= high:
+            in_target += 1
+    if letters < 40:  # too short to judge; do not reject on noise
+        return True
+    return (in_target / letters) >= _MIN_TARGET_SCRIPT_SHARE
+
+
 def _select_passages(question: str, topic: str | None) -> list[RetrievedPassage]:
     """
     Choose the passages an answer will be built from.
@@ -388,10 +506,18 @@ async def answer_question(
     prompt = _build_prompt(question, passages, language)
 
     generated = await _try_ollama(prompt)
+    if generated and not _is_in_requested_language(generated, language):
+        print(f"[rag] Local model replied in the wrong language (wanted {language}); "
+              f"trying the next provider.")
+        generated = None
     if generated:
         return LegalAnswer(reply=generated, sources=sources, provider="ollama", grounding=grounding)
 
     generated = await _try_gemini(prompt)
+    if generated and not _is_in_requested_language(generated, language):
+        print(f"[rag] Hosted model replied in the wrong language (wanted {language}); "
+              f"falling back to the extractive answer.")
+        generated = None
     if generated:
         return LegalAnswer(reply=generated, sources=sources, provider="gemini", grounding=grounding)
 

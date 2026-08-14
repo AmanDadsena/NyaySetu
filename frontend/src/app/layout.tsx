@@ -7,6 +7,7 @@ import { Chatbot } from "@/components/Chatbot";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { LOCALE_COOKIE, normalizeLocale } from "@/lib/i18n/locales";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
+import { AuthGateProvider } from "@/lib/auth/AuthGate";
 
 const fontSans = Inter({
   subsets: ["latin"],
@@ -62,9 +63,11 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-white text-black">
         <LanguageProvider initialLocale={locale}>
           <AuthProvider>
-            <Navbar />
-            {children}
-            <Chatbot />
+            <AuthGateProvider>
+              <Navbar />
+              {children}
+              <Chatbot />
+            </AuthGateProvider>
           </AuthProvider>
         </LanguageProvider>
       </body>
