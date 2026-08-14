@@ -4,9 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Scale, Mail, Lock, User, Briefcase, Loader2, ArrowRight, Award, CheckCircle2 } from "lucide-react";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { destinationAfterLogin, withNext } from "@/lib/auth/redirect";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [role, setRole] = useState<"client" | "lawyer">("client");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -49,7 +52,13 @@ export default function RegisterPage() {
       };
 
       if (role === "lawyer") {
-        payload.specialties = specialties.split(",").map((s) => s.trim());
+        // The API takes a comma-separated string, not an array. Sending an
+        // array here made every lawyer registration fail validation with a 422.
+        payload.specialties = specialties
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .join(", ");
         payload.experience_years = parseInt(experience) || 0;
       }
 
@@ -63,11 +72,19 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || "Registration failed");
+        // FastAPI validation errors arrive as a list of objects; rendering that
+        // raw showed "[object Object]" to the user.
+        const detail = Array.isArray(errorData.detail)
+          ? errorData.detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join(". ")
+          : errorData.detail;
+        throw new Error(detail || "Registration failed");
       }
 
-      // Automatically log them in or redirect to login
-      router.push("/login");
+      // Registration now returns a token, so go straight in rather than
+      // bouncing someone who just set a password to a login form.
+      const data = await response.json();
+      signIn(data.access_token, data.user);
+      router.replace(destinationAfterLogin());
     } catch (err: any) {
       setError(err.message || "An error occurred during registration.");
     } finally {
@@ -358,7 +375,7 @@ export default function RegisterPage() {
 
         <p className="mt-8 text-center text-sm text-gray-500">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-black hover:underline">
+          <Link href={withNext("/login")} className="font-medium text-black hover:underline">
             Sign in
           </Link>
         </p>

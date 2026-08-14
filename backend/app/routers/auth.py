@@ -9,6 +9,7 @@ from jose import jwt
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
+from app.config import ACCESS_TOKEN_TTL_MINUTES, JWT_ALGORITHM, JWT_SECRET_KEY
 from app.db.database import get_db
 from app.db.models import User
 
@@ -17,8 +18,6 @@ load_dotenv()
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "nyaysetu_secret_key_dev_only")
-ALGORITHM = "HS256"
 
 class UserCreate(BaseModel):
     name: str
@@ -57,9 +56,9 @@ class UserLogin(BaseModel):
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=60*24) # 24 hours
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_TTL_MINUTES)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 @router.post("/register")
 async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -80,11 +79,21 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
-    
+
+    # Issue a token here too. Making someone who just typed their password
+    # type it again on a login screen is friction with no security benefit.
+    token = create_access_token({"sub": str(new_user.id), "role": new_user.role})
     return {
-        "message": "User registered successfully", 
+        "message": "User registered successfully",
         "user_id": new_user.id,
-        "role": new_user.role
+        "role": new_user.role,
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": new_user.id,
+            "name": new_user.name,
+            "role": new_user.role,
+        },
     }
 
 @router.post("/login")
