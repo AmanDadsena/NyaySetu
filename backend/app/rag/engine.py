@@ -66,6 +66,10 @@ _ollama_skip_until = 0.0
 
 @dataclass
 class Source:
+    #: Corpus passage id. Carried so the UI can fetch the exact text the answer
+    #: was built from — most `url`s point at a statute portal's front page,
+    #: which proves nothing about what this particular answer relied on.
+    id: str
     title: str
     citation: str
     url: str
@@ -494,6 +498,7 @@ async def answer_question(
 
     sources = [
         Source(
+            id=p.passage.id,
             title=p.passage.title,
             citation=p.passage.citation,
             url=p.passage.source_url,
@@ -553,7 +558,12 @@ async def stream_answer(
         return
 
     sources = [
-        {"title": p.passage.title, "citation": p.passage.citation, "url": p.passage.source_url}
+        {
+            "id": p.passage.id,
+            "title": p.passage.title,
+            "citation": p.passage.citation,
+            "url": p.passage.source_url,
+        }
         for p in passages[:3]
     ]
     grounding = "high" if passages[0].score >= 0.55 else "medium"

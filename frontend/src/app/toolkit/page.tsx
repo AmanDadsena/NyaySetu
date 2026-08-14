@@ -31,6 +31,7 @@ import {
   Scale as ScaleIcon,
   FileSearch,
   Landmark,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TimelineTool } from "@/components/toolkit/TimelineTool";
@@ -41,10 +42,13 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { CitationsTool } from "@/components/toolkit/CitationsTool";
 import { StampDutyTool } from "@/components/toolkit/StampDutyTool";
 import { MaintenanceTool } from "@/components/toolkit/MaintenanceTool";
+import { CasePlanTool } from "@/components/toolkit/CasePlanTool";
+import { calculateLocally, readCachedBundle, refreshBundle } from "@/lib/toolkit/offline";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type Tab =
+  | "plan"
   | "deadline"
   | "forum"
   | "draft"
@@ -56,6 +60,7 @@ type Tab =
   | "citations";
 
 const TABS: Tab[] = [
+  "plan",
   "deadline",
   "forum",
   "draft",
@@ -368,7 +373,11 @@ function FilingDayPanel({
 export default function ToolkitPage() {
   const { requireAuth } = useAuthGate();
   const t = useT();
-  const [tab, setTab] = useState<Tab>("deadline");
+  const [tab, setTab] = useState<Tab>("plan");
+  /** Set when the last deadline came from the cached tables, not the server. */
+  const [computedOffline, setComputedOffline] = useState(false);
+  /** Pre-selected situation, when the analyser sent the user here. */
+  const [planSituation, setPlanSituation] = useState("");
   const [shared, setShared] = useState(false);
 
   // Deadline
@@ -405,6 +414,17 @@ export default function ToolkitPage() {
     if (params.get("on")) setLimDate(params.get("on")!);
     if (params.get("problem")) setForumId(params.get("problem")!);
     if (params.get("value")) setClaimValue(params.get("value")!);
+    // Sent by the document analyser, which knows the template and the
+    // situation before the user has touched anything.
+    if (params.get("template")) setTemplateId(params.get("template")!);
+    if (params.get("situation")) setPlanSituation(params.get("situation")!);
+  }, []);
+
+  // Warm the offline tables while the connection is good, so the deadline
+  // calculator still answers when it is not. Cheap, cached, and it fails
+  // silently — nothing here is worth interrupting the page for.
+  useEffect(() => {
+    void refreshBundle();
   }, []);
 
   useEffect(() => {
@@ -545,6 +565,7 @@ export default function ToolkitPage() {
   };
 
   const tabs: { id: Tab; label: string; icon: typeof Clock; blurb: string }[] = [
+    { id: "plan", label: t("toolkit.tab.plan"), icon: Sparkles, blurb: t("toolkit.blurb.plan") },
     { id: "deadline", label: t("toolkit.tab.deadline"), icon: CalendarClock, blurb: t("toolkit.blurb.deadline") },
     { id: "forum", label: t("toolkit.tab.forum"), icon: MapPin, blurb: t("toolkit.blurb.forum") },
     { id: "draft", label: t("toolkit.tab.draft"), icon: FileText, blurb: t("toolkit.blurb.draft") },
@@ -686,13 +707,33 @@ export default function ToolkitPage() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() =>
                     requireAuth(async () => {
                       const r = await post("/api/tools/limitation", {
                         rule_id: limId,
                         event_date: limDate,
                       });
-                      if (r) setLimResult(r);
+                      if (r) {
+                        setLimResult(r);
+                        setComputedOffline(false);
+                        return;
+                      }
+                      // The server did not answer. This is arithmetic over a
+                      // table we already hold, so refusing to answer would be a
+                      // choice rather than a limitation.
+                      const cached = readCachedBundle();
+                      if (cached) {
+                        try {
+                          setLimResult(
+                            calculateLocally(cached, limId, limDate) as unknown as LimitationResult,
+                          );
+                          setComputedOffline(true);
+                          setError(null);
+                        } catch {
+                          /* Unknown rule in an old cache — leave the server error up. */
+                        }
+                      }
                     }, t("auth.reason.deadline"))
                   }
                   disabled={!limId || !limDate || busy}
@@ -703,6 +744,13 @@ export default function ToolkitPage() {
                 </button>
               </div>
             </SectionCard>
+
+            {limResult && computedOffline && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{t("toolkit.offlineNotice")}</span>
+              </div>
+            )}
 
             {limResult && (
               <SectionCard className="animate-fade-in-up">
@@ -1040,6 +1088,22 @@ export default function ToolkitPage() {
             )}
           </div>
         )}
+        {tab === "plan" && (
+          <div className="animate-fade-in-up">
+            <CasePlanTool
+              onError={setError}
+              initialSituation={planSituation}
+              initialDate={limDate}
+              onOpenTemplate={(id) => {
+                setTemplateId(id);
+                setTab("draft");
+                setError(null);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+          </div>
+        )}
+
         {tab === "timeline" && (
           <div className="animate-fade-in-up">
             <TimelineTool onError={setError} />

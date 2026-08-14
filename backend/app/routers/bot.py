@@ -15,11 +15,12 @@ from typing import List, Optional
 
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.rag import answer_question
+from app.rag import feedback
 from app.rag.engine import stream_answer
 
 router = APIRouter(prefix="/api/bot", tags=["bot"])
@@ -40,9 +41,15 @@ class ChatRequest(BaseModel):
     # typing. The chips are translated, so pinning by id keeps them accurate
     # in every script without the corpus needing translations of its own.
     topic: Optional[str] = None
+    # Random value the client keeps for the life of one conversation. Used only
+    # to tell "asked again, differently" from "asked something new" — it maps to
+    # no account and is never stored alongside one. See app/rag/feedback.py.
+    session: Optional[str] = None
 
 
 class SourceRef(BaseModel):
+    #: Corpus passage id, so the client can pull the exact text behind a claim.
+    id: str = ""
     title: str
     citation: str
     url: str
@@ -67,16 +74,54 @@ async def bot_chat(request: ChatRequest) -> ChatResponse:
         topic=request.topic,
     )
 
+    feedback.record(
+        question=request.message,
+        retrieved=[s.id for s in answer.sources],
+        top_score=answer.sources[0].score if answer.sources else 0.0,
+        grounding=answer.grounding,
+        language=request.language,
+        session=request.session,
+    )
+
     return ChatResponse(
         status="success",
         reply=answer.reply,
         sources=[
-            SourceRef(title=s.title, citation=s.citation, url=s.url)
+            SourceRef(id=s.id, title=s.title, citation=s.citation, url=s.url)
             for s in answer.sources
         ],
         provider=answer.provider,
         grounding=answer.grounding,
     )
+
+
+@router.get("/passage/{passage_id}")
+async def get_passage(passage_id: str) -> dict:
+    """
+    The exact text an answer was built from.
+
+    A citation the reader cannot check is a claim, not a citation. Most of the
+    corpus cites India Code, whose `source_url` is a portal front page — it
+    proves the Act exists, not that it says what the answer says it says. This
+    returns the passage itself so the reader can compare the two.
+    """
+    from app.rag.corpus import get as get_passage_by_id
+
+    passage = get_passage_by_id(passage_id)
+    if passage is None:
+        raise HTTPException(status_code=404, detail=f"Unknown passage: {passage_id}")
+
+    return {
+        "id": passage.id,
+        "title": passage.title,
+        "act": passage.act,
+        "section": passage.section,
+        "citation": passage.citation,
+        "text": passage.text,
+        "url": passage.source_url,
+        "topics": list(passage.topics),
+        "also_known_as": list(passage.also_known_as),
+    }
 
 
 @router.get("/health")

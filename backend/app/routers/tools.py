@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.tools import (
+    bundle,
     citations,
     documents,
     fees,
@@ -22,6 +23,7 @@ from app.tools import (
     holidays,
     limitation,
     maintenance,
+    plan,
     stamp_duty,
     timeline,
 )
@@ -229,6 +231,54 @@ async def estimate_maintenance(request: MaintenanceRequest) -> dict:
         request.parents,
     )
     return result.__dict__
+
+
+# ── Case plan ───────────────────────────────────────────────────────────
+class PlanRequest(BaseModel):
+    situation_id: str
+    event_date: date = Field(description="When the problem happened — see the situation's question")
+    claim_value: float | None = Field(
+        default=None, description="Amount at stake, where the forum or the fee depends on it"
+    )
+    state: str | None = None
+
+
+@router.get("/plan")
+async def list_situations() -> dict:
+    return {"situations": plan.catalogue()}
+
+
+@router.post("/plan")
+async def build_plan(request: PlanRequest) -> dict:
+    if request.event_date > date.today():
+        raise HTTPException(
+            status_code=400,
+            detail="That date is in the future. Enter the date the event actually happened.",
+        )
+    try:
+        result = plan.build(
+            request.situation_id, request.event_date, request.claim_value, request.state
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return {
+        **result.__dict__,
+        "deadlines": [d.__dict__ for d in result.deadlines],
+    }
+
+
+# ── Offline bundle ──────────────────────────────────────────────────────
+@router.get("/bundle")
+async def offline_bundle() -> dict:
+    """
+    Every lookup table the deadline tool needs, in one response.
+
+    Fetched once and cached in the browser so the arithmetic keeps working with
+    no network — which is the condition a good share of this app's users are
+    actually in.
+    """
+    return bundle.build()
 
 
 # ── Working days ────────────────────────────────────────────────────────
