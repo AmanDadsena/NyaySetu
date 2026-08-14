@@ -43,14 +43,20 @@ from app.rag.corpus import CORPUS  # noqa: E402
 from app.rag.eval import (  # noqa: E402
     CASES,
     MULTILINGUAL_CASES,
+    NEAR_LAW_NEGATIVES,
     NEGATIVE_CASES,
     NEGATIVE_MULTILINGUAL,
 )
 
-#: Off-topic questions in every language, as one list. The guard ablation is
-#: about false positives, and counting only the English ones would understate
-#: what a loosened semantic gate lets through.
+#: Everyday off-topic questions in every language. The guard ablation is about
+#: false positives, and counting only the English ones would understate what a
+#: loosened semantic gate lets through.
 ALL_NEGATIVES: list[str] = NEGATIVE_CASES + [q for _lang, q in NEGATIVE_MULTILINGUAL]
+
+#: Reported alongside, never mixed in. These fail at every setting, so averaging
+#: them into one rate would move a number that no guard controls and hide the
+#: one that they do.
+NEAR_LAW: list[str] = [q for _lang, q in NEAR_LAW_NEGATIVES]
 from app.rag.retriever import Retriever  # noqa: E402
 
 #: Sampling seed. Fixed so the corpus curve is the same on every machine.
@@ -94,6 +100,7 @@ def _score_subset(
             m3 += 1
 
     false_positives = sum(1 for q in ALL_NEGATIVES if retriever.search(q, top_k=3))
+    near_law = sum(1 for q in NEAR_LAW if retriever.search(q, top_k=3))
 
     n, m = max(len(english), 1), max(len(multilingual), 1)
     return {
@@ -103,7 +110,8 @@ def _score_subset(
         "ml_hit1": m1 / m,
         "ml_hit3": m3 / m,
         "ml_answered": answered / m,
-        "fp_rate": false_positives / len(NEGATIVE_CASES),
+        "fp_rate": false_positives / len(ALL_NEGATIVES),
+        "near_law_rate": near_law / len(NEAR_LAW) if NEAR_LAW else 0.0,
     }
 
 
@@ -146,7 +154,7 @@ def _build(corpus: list, dense: bool, lexicon: bool) -> tuple[Retriever, Callabl
 
 _HEADER = (
     f"  {'condition':<26} {'en@1':>6} {'en@3':>6} {'MRR':>6} "
-    f"{'ml@1':>6} {'ml@3':>6} {'ml ans':>7} {'FP':>5}"
+    f"{'ml@1':>6} {'ml@3':>6} {'ml ans':>7} {'FP':>5} {'nearlaw':>8}"
 )
 
 
@@ -154,7 +162,7 @@ def _row(name: str, s: dict[str, float]) -> str:
     return (
         f"  {name:<26} {s['en_hit1']:>6.1%} {s['en_hit3']:>6.1%} {s['en_mrr']:>6.3f} "
         f"{s['ml_hit1']:>6.1%} {s['ml_hit3']:>6.1%} {s['ml_answered']:>7.1%} "
-        f"{s['fp_rate']:>5.0%}"
+        f"{s['fp_rate']:>5.0%} {s['near_law_rate']:>8.0%}"
     )
 
 
