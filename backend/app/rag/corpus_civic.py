@@ -1611,4 +1611,124 @@ CIVIC_CORPUS: list[Passage] = [
         topics=("fake profile", "deepfake", "identity theft", "morphed photo", "impersonation"),
         also_known_as=("66c", "66d", "fake account", "ai generated image"),
     ),
+
+    # ── The legal system as an institution ──────────────────────────────
+    #
+    # Added because the corpus could describe what the law says while having
+    # nothing at all about who administers it. Questions like "which court
+    # handles this", "how does someone become a lawyer" and "what does a judge
+    # earn" were retrieving whatever shared a word with them — "best law
+    # college" returned the ragging regulations — because there was no better
+    # answer to find. These have stable, statutory answers, so they belong here.
+    #
+    # Deliberately absent: anything that goes stale. No serving judge is named
+    # and no exam date appears, because a corpus with no update pipeline that
+    # asserts a name is confidently wrong within months. Refusing those remains
+    # the correct behaviour.
+    Passage(
+        id="court_hierarchy",
+        title="Which court is which, and what each one handles",
+        act="Constitution of India; Code of Civil Procedure, 1908; "
+            "Bharatiya Nagarik Suraksha Sanhita, 2023",
+        section="Articles 124, 214, 227 and 233",
+        text=(
+            "Almost every case starts at the bottom, not the top. Going straight to a "
+            "High Court or the Supreme Court with an ordinary dispute gets it returned. "
+            "The district judiciary is the trial level and where nearly everything "
+            "begins. On the civil side that is the Civil Judge (Junior Division) for "
+            "smaller claims, the Senior Division above it, and the District Judge above "
+            "that; the value of the claim decides which. On the criminal side it is the "
+            "Judicial Magistrate for most offences and the Court of Session for the "
+            "gravest ones. Family Courts, Motor Accident Claims Tribunals, Consumer "
+            "Commissions, Labour Courts and Rent Authorities sit alongside them, each "
+            "taking a defined subject out of the ordinary courts. "
+            "Each State has a High Court, which hears appeals from the district "
+            "judiciary, exercises writ jurisdiction under Article 226, and supervises "
+            "every court below it under Article 227. Its writ jurisdiction is wider than "
+            "the Supreme Court's, because it covers legal rights as well as fundamental "
+            "rights, which is why most writ petitions are filed there. "
+            "The Supreme Court sits at the top: appeals from the High Courts, writ "
+            "petitions under Article 32 for fundamental rights, and disputes between "
+            "States or between a State and the Union. Its sanctioned strength is 34 "
+            "judges including the Chief Justice, and it sits in benches rather than as a "
+            "whole. What it decides binds every court in India under Article 141."
+        ),
+        source_url=INDIA_CODE,
+        topics=("court hierarchy", "which court", "high court", "district court",
+                "supreme court", "sessions court", "magistrate", "tribunal",
+                "structure of courts", "appeal route"),
+        also_known_as=("court structure", "subordinate judiciary", "district judiciary",
+                       "which court do I go to", "types of courts in india"),
+    ),
+    Passage(
+        id="becoming_a_lawyer",
+        title="Becoming a lawyer, and what legal education requires",
+        act="Advocates Act, 1961 and Bar Council of India Rules",
+        section="Sections 24, 24A and 49(1)(ah)",
+        text=(
+            "There are two routes into a law degree. After Class 12 you can take a "
+            "five-year integrated course leading to a BA LLB or similar; after any "
+            "bachelor's degree you can take the three-year LLB. Both end at the same "
+            "place. Entry to the National Law Universities is through CLAT, and other "
+            "universities run their own tests, but the qualification that matters is "
+            "not the ranking of the college — it is whether the degree comes from an "
+            "institution approved by the Bar Council of India. A degree from an "
+            "unapproved institution cannot be enrolled on, whatever else it offers, so "
+            "this is the one thing to verify before paying any fee. "
+            "After the degree you enrol as an advocate with the State Bar Council where "
+            "you intend to practise. Enrolment is a right, not a selection: Section 24 "
+            "sets out the qualifications, and meeting them entitles you to be enrolled. "
+            "You must then pass the All India Bar Examination conducted by the Bar "
+            "Council of India to receive a Certificate of Practice. There is no limit "
+            "on attempts and no time bar on passing it. "
+            "Section 24A disqualifies a person convicted of an offence involving moral "
+            "turpitude, though that disqualification ends two years after the sentence. "
+            "Only an enrolled advocate may plead in a court on someone else's behalf; a "
+            "party may always argue their own case in person."
+        ),
+        source_url=INDIA_CODE,
+        topics=("become a lawyer", "law college", "llb", "clat", "bar council",
+                "enrolment", "all india bar examination", "legal education",
+                "advocate qualification", "law degree"),
+        also_known_as=("how to become an advocate", "aibe", "bci approved",
+                       "best law college", "study law", "vakalat"),
+    ),
+    Passage(
+        id="judges_appointment_and_service",
+        title="How judges are appointed, what they are paid, and when they retire",
+        act="Constitution of India; Supreme Court Judges (Salaries and Conditions of "
+            "Service) Act, 1958; High Court Judges (Salaries and Conditions of "
+            "Service) Act, 1954",
+        section="Articles 124, 217, 233 and 235",
+        text=(
+            "Judges of the Supreme Court and the High Courts are appointed by the "
+            "President on the recommendation of the collegium — the Chief Justice of "
+            "India with the senior-most judges — following the Supreme Court's own "
+            "judgments on the subject. The National Judicial Appointments Commission "
+            "that would have replaced this was struck down in 2015. "
+            "To be a High Court judge under Article 217 a person must have held "
+            "judicial office for ten years or practised as an advocate in a High Court "
+            "for ten years. Supreme Court judges are drawn from High Court judges, "
+            "advocates of ten years' standing, or distinguished jurists. "
+            "The district judiciary is entered differently and by examination. State "
+            "judicial service exams, run by the High Court or the State Public Service "
+            "Commission, recruit Civil Judges (Junior Division) directly from law "
+            "graduates; the higher judicial service takes advocates with seven years' "
+            "practice. District Judges are appointed by the Governor in consultation "
+            "with the High Court under Article 233. "
+            "Salaries are fixed by statute, not by negotiation, and were last revised "
+            "with effect from 2016: the Chief Justice of India draws ₹2,80,000 a month, "
+            "Supreme Court judges and High Court Chief Justices ₹2,50,000, and other "
+            "High Court judges ₹2,25,000, with allowances and pension on top. Supreme "
+            "Court judges retire at 65 and High Court judges at 62. A judge can be "
+            "removed only by impeachment under Article 124(4), which has never "
+            "succeeded."
+        ),
+        source_url=INDIA_CODE,
+        topics=("judge appointment", "collegium", "judge salary", "judicial service exam",
+                "become a judge", "retirement age", "impeachment of judge",
+                "district judge", "qualification for judge"),
+        also_known_as=("what does a judge earn", "how to become a judge",
+                       "judicial services", "njac", "judge pay"),
+    ),
 ]

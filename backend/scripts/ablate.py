@@ -154,15 +154,18 @@ def _build(corpus: list, dense: bool, lexicon: bool) -> tuple[Retriever, Callabl
 
 _HEADER = (
     f"  {'condition':<26} {'en@1':>6} {'en@3':>6} {'MRR':>6} "
-    f"{'ml@1':>6} {'ml@3':>6} {'ml ans':>7} {'FP':>5} {'nearlaw':>8}"
+    f"{'ml@1':>6} {'ml@3':>6} {'ml ans':>7} {'FP':>5} {'oos':>6}"
 )
 
 
 def _row(name: str, s: dict[str, float]) -> str:
+    # `oos` is a count, not a rate. The out-of-scope set is down to three
+    # questions now that the court and profession passages exist, and one of
+    # three rendered as 33% invites reading a sampling artefact as a trend.
     return (
         f"  {name:<26} {s['en_hit1']:>6.1%} {s['en_hit3']:>6.1%} {s['en_mrr']:>6.3f} "
         f"{s['ml_hit1']:>6.1%} {s['ml_hit3']:>6.1%} {s['ml_answered']:>7.1%} "
-        f"{s['fp_rate']:>5.0%} {s['near_law_rate']:>8.0%}"
+        f"{s['fp_rate']:>5.0%} {int(s['near_law_rate'] * len(NEAR_LAW)):>3}/{len(NEAR_LAW):<2}"
     )
 
 

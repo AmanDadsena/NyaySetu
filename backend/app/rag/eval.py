@@ -273,6 +273,18 @@ CASES: list[tuple[str, str]] = [
     ("The land record shows the wrong name for my field", "land_records"),
     ("How do I add my name to the voter list?", "voter_registration"),
     ("A government office is sitting on my application", "cpgrams_grievance"),
+
+    # The legal system itself. These were false positives until the passages
+    # existed — "best law college" retrieved the ragging regulations — and are
+    # cases now because the corpus genuinely answers them.
+    ("How do I become a lawyer in India?", "becoming_a_lawyer"),
+    ("Which is the best law college in the country?", "becoming_a_lawyer"),
+    ("Do I need to pass an exam after my law degree?", "becoming_a_lawyer"),
+    ("What is the salary of a High Court judge?", "judges_appointment_and_service"),
+    ("Who appoints judges to the Supreme Court?", "judges_appointment_and_service"),
+    ("How do I become a judge?", "judges_appointment_and_service"),
+    ("Which court do I file a small civil claim in?", "court_hierarchy"),
+    ("What is the difference between a High Court and a Sessions Court?", "court_hierarchy"),
 ]
 
 #: Questions that are not about Indian law. The retriever should return nothing
@@ -321,28 +333,44 @@ NEGATIVE_CASES: list[str] = [
 #: worth acting on. Two ways out, neither a retrieval fix: add passages that
 #: genuinely answer these (court structure, entering the profession), turning
 #: false positives into true ones; or classify intent before retrieving.
+#: Out of scope on purpose. State-specific, changes every cycle, and nothing in
+#: the corpus claims to track it — the only correct behaviour is to refuse.
 NEAR_LAW_NEGATIVES: list[tuple[str, str]] = [
-    ("en", "How do I become a lawyer in India?"),
-    ("en", "Which is the best law college in the country?"),
-    ("en", "Who is the current Chief Justice of India?"),
-    ("en", "What is the salary of a High Court judge?"),
     ("en", "When is the police recruitment exam?"),
-    ("hi", "वकील बनने के लिए क्या पढ़ना पड़ता है"),
-    ("hi", "भारत के मुख्य न्यायाधीश कौन हैं"),
-    ("hi", "सबसे अच्छा लॉ कॉलेज कौन सा है"),
-    ("mr", "वकील होण्यासाठी काय शिकावे लागते"),
     ("mr", "पोलीस भरती परीक्षा कधी आहे"),
-    ("gu", "લૉ કૉલેજમાં પ્રવેશ કેવી રીતે લેવો"),
-    ("gu", "ન્યાયાધીશનો પગાર કેટલો હોય છે"),
-    ("ta", "வழக்கறிஞர் ஆவது எப்படி"),
-    ("ta", "இந்தியத் தலைமை நீதிபதி யார்"),
-    ("te", "న్యాయవాది కావాలంటే ఏమి చదవాలి"),
-    ("te", "న్యాయమూర్తి జీతం ఎంత"),
-    ("bn", "আইন কলেজে ভর্তি কীভাবে হব"),
-    ("bn", "ভারতের প্রধান বিচারপতি কে"),
-    ("kn", "ವಕೀಲರಾಗುವುದು ಹೇಗೆ"),
     ("kn", "ಪೊಲೀಸ್ ನೇಮಕಾತಿ ಪರೀಕ್ಷೆ ಯಾವಾಗ"),
-    ("kn", "ನ್ಯಾಯಾಧೀಶರ ಸಂಬಳ ಎಷ್ಟು"),
+]
+
+#: Questions about a fact that goes stale, where the corpus explains the
+#: *mechanism* but deliberately holds no current answer.
+#:
+#: `judges_appointment_and_service` sets out how the Chief Justice is appointed,
+#: the qualifications, the salary and the retirement age. It does not name
+#: whoever currently holds the office, and it must not: a corpus with no update
+#: pipeline that asserts a name is confidently wrong within months.
+#:
+#: So these retrieve a genuinely relevant passage — at confidence 1.00 in Hindi
+#: — that cannot answer the question as asked. Whether that counts as success is
+#: a product decision rather than a retrieval one, which is why they are held
+#: apart from both the cases and the negatives rather than quietly filed as
+#: either.
+#:
+#: TODO(product): decide how this class should behave. Two defensible answers:
+#:
+#:   * Treat as a hit. Returning the appointment passage lets the reply say how
+#:     the office is filled and that the current holder is not held here, which
+#:     is more use than a refusal. Move these into `CASES` expecting
+#:     `judges_appointment_and_service`.
+#:   * Treat as a refusal. A confidence of 1.00 on a question the corpus cannot
+#:     answer is the misleading part, and a reader who sees a confident passage
+#:     about the collegium may not notice the name never appears. Keep them
+#:     failing here until retrieval can distinguish "explains the office" from
+#:     "names the holder".
+VOLATILE_FACT_QUESTIONS: list[tuple[str, str]] = [
+    ("en", "Who is the current Chief Justice of India?"),
+    ("hi", "भारत के मुख्य न्यायाधीश कौन हैं"),
+    ("ta", "இந்தியத் தலைமை நீதிபதி யார்"),
+    ("bn", "ভারতের প্রধান বিচারপতি কে"),
 ]
 
 #: Off-topic questions in the seven non-English UI languages.
@@ -484,6 +512,28 @@ _add_multilingual(
     kn="ಮಾಹಿತಿ ಹಕ್ಕು ಅರ್ಜಿ ಹೇಗೆ",
 )
 _add_multilingual(
+    {"becoming_a_lawyer"},
+    hi="वकील बनने के लिए क्या पढ़ना पड़ता है",
+    mr="वकील होण्यासाठी काय शिकावे लागते",
+    gu="લૉ કૉલેજમાં પ્રવેશ કેવી રીતે લેવો",
+    ta="வழக்கறிஞர் ஆவது எப்படி",
+    te="న్యాయవాది కావాలంటే ఏమి చదవాలి",
+    bn="আইন কলেজে ভর্তি কীভাবে হব",
+    kn="ವಕೀಲರಾಗುವುದು ಹೇಗೆ",
+)
+_add_multilingual(
+    {"judges_appointment_and_service"},
+    gu="ન્યાયાધીશનો પગાર કેટલો હોય છે",
+    te="న్యాయమూర్తి జీతం ఎంత",
+    kn="ನ್ಯಾಯಾಧೀಶರ ಸಂಬಳ ಎಷ್ಟು",
+)
+# A second Hindi phrasing, asking about colleges rather than qualifying. Kept
+# because "which is best" is how people actually ask, and the passage answers it
+# by saying Bar Council approval is the thing that matters.
+MULTILINGUAL_CASES.append(
+    ("hi", "सबसे अच्छा लॉ कॉलेज कौन सा है", frozenset({"becoming_a_lawyer"}))
+)
+_add_multilingual(
     {"consumer_where_to_file", "consumer_how_to_file", "e_commerce_rights"},
     hi="उपभोक्ता शिकायत कहां दर्ज करें",
     mr="ग्राहक तक्रार कुठे नोंदवावी",
@@ -527,6 +577,11 @@ def run(verbose: bool = True) -> dict[str, float]:
     near_law_answered = [
         (lang, q, results[0])
         for lang, q in NEAR_LAW_NEGATIVES
+        if (results := retriever.search(q, top_k=1))
+    ]
+    volatile_answered = [
+        (lang, q, results[0])
+        for lang, q in VOLATILE_FACT_QUESTIONS
         if (results := retriever.search(q, top_k=1))
     ]
 
@@ -609,13 +664,19 @@ def run(verbose: bool = True) -> dict[str, float]:
 
         # Reported, deliberately not gated. See NEAR_LAW_NEGATIVES for why no
         # threshold separates these from real questions.
-        print(f"\n  Known weakness — legal words, no legal question: "
+        print(f"\n  Out of scope — should refuse: "
               f"{len(near_law_answered)}/{len(NEAR_LAW_NEGATIVES)} answered")
-        if near_law_answered:
-            worst = sorted(near_law_answered, key=lambda t: -t[2].confidence)[:4]
-            for lang, question, hit in worst:
-                print(f"    [{lang}] {question[:44]:46} -> {hit.passage.id} "
-                      f"(conf {hit.confidence:.2f})")
+        for lang, question, hit in near_law_answered:
+            print(f"    [{lang}] {question[:44]:46} -> {hit.passage.id} "
+                  f"(conf {hit.confidence:.2f})")
+
+        # Reported without a verdict — see VOLATILE_FACT_QUESTIONS for why the
+        # right behaviour here has not been decided yet.
+        print(f"\n  Volatile facts — mechanism held, current answer not: "
+              f"{len(volatile_answered)}/{len(VOLATILE_FACT_QUESTIONS)} retrieved")
+        for lang, question, hit in volatile_answered:
+            print(f"    [{lang}] {question[:44]:46} -> {hit.passage.id} "
+                  f"(conf {hit.confidence:.2f})")
 
         if ml_misses:
             print(f"\n  {len(ml_misses)} missed:")
