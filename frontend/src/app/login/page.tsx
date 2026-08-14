@@ -1,16 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Scale, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { destinationAfterLogin, withNext } from "@/lib/auth/redirect";
+import { AUTH_REASON_KEY } from "@/lib/auth/AuthGate";
+import { useT } from "@/lib/i18n/LanguageProvider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { signIn } = useAuth();
+  const t = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Set when a tool sent the user here mid-task. Read once and cleared, so a
+  // later visit to /login doesn't replay a stale explanation.
+  const [reason, setReason] = useState("");
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(AUTH_REASON_KEY);
+      if (stored) setReason(stored);
+      sessionStorage.removeItem(AUTH_REASON_KEY);
+    } catch {
+      // Storage unavailable — the page just shows its default subtitle.
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +51,8 @@ export default function LoginPage() {
       }
 
       const data = await response.json();
-      localStorage.setItem("token", data.access_token);
-      router.push("/cases");
+      signIn(data.access_token, data.user);
+      router.replace(destinationAfterLogin());
     } catch (err: any) {
       setError(err.message || "An error occurred during login.");
     } finally {
@@ -62,10 +81,10 @@ export default function LoginPage() {
           </Link>
         </div>
         <h2 className="text-center text-3xl font-normal tracking-tight text-gray-900 mb-2">
-          Welcome back
+          {t("auth.welcomeBack")}
         </h2>
         <p className="text-center text-sm text-gray-500">
-          Enter your credentials to access your account
+          {reason || t("auth.subtitle")}
         </p>
       </div>
 
@@ -80,7 +99,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="email">
-                Email address
+                {t("auth.email")}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
@@ -103,11 +122,11 @@ export default function LoginPage() {
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="block text-sm font-medium text-gray-700" htmlFor="password">
-                  Password
+                  {t("auth.password")}
                 </label>
                 <div className="text-sm">
                   <a href="#" className="font-medium text-gray-500 hover:text-black transition-colors">
-                    Forgot your password?
+                    {t("auth.forgot")}
                   </a>
                 </div>
               </div>
@@ -137,7 +156,7 @@ export default function LoginPage() {
                 className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded cursor-pointer"
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer">
-                Remember me for 30 days
+                {t("auth.remember")}
               </label>
             </div>
 
@@ -151,7 +170,7 @@ export default function LoginPage() {
                   <Loader2 className="animate-spin w-5 h-5" />
                 ) : (
                   <>
-                    Sign in
+                    {t("auth.signIn")}
                     <ArrowRight className="ml-2 w-4 h-4 opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                   </>
                 )}
@@ -165,7 +184,7 @@ export default function LoginPage() {
                 <div className="w-full border-t border-gray-200" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white/70 text-gray-500">Or continue with</span>
+                <span className="px-2 bg-white/70 text-gray-500">{t("auth.orContinue")}</span>
               </div>
             </div>
 
@@ -198,9 +217,9 @@ export default function LoginPage() {
         </div>
         
         <p className="mt-8 text-center text-sm text-gray-500">
-          Don't have an account?{" "}
-          <Link href="/register" className="font-medium text-black hover:underline">
-            Sign up now
+          {t("auth.noAccount")}{" "}
+          <Link href={withNext("/register")} className="font-medium text-black hover:underline">
+            {t("auth.signUpNow")}
           </Link>
         </p>
       </div>

@@ -7,9 +7,17 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  /* Latin faces come from next/font; the Noto and platform families after them
+     cover the seven Indic scripts the UI ships in. The browser resolves the
+     stack per glyph, so a Tamil heading picks up a Tamil face automatically
+     instead of rendering in whatever the default happens to be. */
+  --font-indic: "Noto Sans Devanagari", "Noto Sans Tamil", "Noto Sans Telugu",
+    "Noto Sans Bengali", "Noto Sans Gujarati", "Noto Sans Kannada",
+    "Nirmala UI", "Kohinoor Devanagari", "Tamil Sangam MN", "Kannada Sangam MN";
+  --font-sans: var(--font-geist-sans), var(--font-indic), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--font-display), var(--font-indic), Georgia, serif;
+  --font-serif: var(--font-display), var(--font-indic), Georgia, serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -379,6 +387,105 @@
   box-shadow: 0 2px 10px oklch(0.50 0.22 280 / 0.25);
 }
 
+/* ── Citations ───
+   Every grounded answer shows the statute it came from. Set quietly: the
+   answer is what the reader wants, the citation is what lets them trust it. */
+.chatbot-sources {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed oklch(0.88 0.02 280);
+}
+.chatbot-sources-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: oklch(0.62 0.03 280);
+  margin-bottom: 4px;
+}
+.chatbot-sources ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+}
+.chatbot-sources a {
+  font-size: 11px;
+  line-height: 1.45;
+  color: oklch(0.50 0.14 265);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.chatbot-sources a:hover {
+  color: oklch(0.42 0.18 265);
+  border-bottom-color: currentColor;
+}
+.chatbot-sources a:focus-visible {
+  outline: 2px solid oklch(0.55 0.18 280);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Read the provision ───
+   The citation links out, but for most of the corpus that lands on a portal
+   front page. This shows the passage the answer was actually built from, so
+   the reader can check the claim against its source in place. */
+.chatbot-passage {
+  display: block;
+}
+.chatbot-passage-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: oklch(0.55 0.03 280);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.chatbot-passage-toggle:hover {
+  color: oklch(0.35 0.05 280);
+}
+.chatbot-passage-toggle:focus-visible {
+  outline: 2px solid oklch(0.55 0.18 280);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.chatbot-passage-body {
+  display: block;
+  margin-top: 5px;
+  padding: 8px 10px;
+  border-left: 2px solid oklch(0.86 0.03 280);
+  background: oklch(0.98 0.005 280);
+  border-radius: 0 6px 6px 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: oklch(0.38 0.02 280);
+  /* Long provisions must not stretch the bubble. */
+  max-height: 15rem;
+  overflow-y: auto;
+}
+.chatbot-passage-body strong {
+  display: block;
+  font-size: 11.5px;
+  color: oklch(0.25 0.02 280);
+}
+.chatbot-passage-body em {
+  display: block;
+  margin-bottom: 5px;
+  font-style: normal;
+  font-size: 10px;
+  color: oklch(0.58 0.03 280);
+}
+
 /* ── Typing dots ─── */
 .chatbot-typing-dots {
   display: flex;
@@ -545,4 +652,204 @@
   0%   { transform: scale(1); opacity: 0.7; }
   70%  { transform: scale(1.35); opacity: 0; }
   100% { transform: scale(1.35); opacity: 0; }
+}
+/* ── Typographic detail ───────────────────────────────────────────────
+   Indic scripts have taller ascenders and descenders than Latin, so the
+   Latin-tuned line heights inherited from the base styles crowd them. Give
+   any element whose language is one of the Indic locales a little more room. */
+:is([lang="hi"], [lang="mr"], [lang="gu"], [lang="ta"],
+    [lang="te"], [lang="bn"], [lang="kn"]) {
+  line-height: 1.7;
+}
+
+/* Headings read better balanced across lines than ragged. */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+/* Numbers that appear in columns or counters should not jitter as they change. */
+.tabular, [class*="tabular-nums"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Citations entrance ─── */
+.chatbot-sources {
+  animation: sourcesReveal 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes sourcesReveal {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Focus visibility ─────────────────────────────────────────────────
+   Keyboard users need to see where they are. The chatbot controls sit on a
+   coloured header, so the ring carries its own offset colour. */
+.chatbot-faq-chip:focus-visible,
+.chatbot-send-btn:focus-visible,
+.chatbot-fab:focus-visible,
+.chatbot-input:focus-visible {
+  outline: 2px solid oklch(0.55 0.22 280);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────
+   The FAB pulse and the typing dots loop indefinitely, which is exactly the
+   kind of motion that triggers vestibular symptoms. Honour the preference
+   rather than merely shortening the durations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .chatbot-fab-ring {
+    display: none;
+  }
+}
+
+/* ── Risk profile meter ────────────────────────────────────────────────
+   The segments grow from zero on first paint so the eye is drawn to the
+   proportion rather than to a bar that was simply always there. Width is
+   the encoding; the counts beside it carry the same information for anyone
+   who cannot use the colour. */
+.risk-segment {
+  animation: riskGrow 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: left center;
+}
+
+@keyframes riskGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ── Print ─────────────────────────────────────────────────────────────
+   People print from this app for one reason: to carry paper into a court,
+   a police station, or a sub-registrar's office. A notice that comes out
+   with a navigation bar across the top and a chat bubble over the
+   signature block is not usable there, so printing is treated as a real
+   output format rather than as a screenshot of the screen.
+
+   Three rules follow from that. Nothing interactive survives — a button
+   printed on paper is a smudge. Generated documents get the page to
+   themselves, in a serif face at a legible size, because a magistrate's
+   clerk reads them. And nothing that carries meaning is allowed to break
+   across a page: a deadline whose date lands on the next sheet has lost
+   the part that mattered. */
+@media print {
+  /* Ink is the user's, and a saved PDF that reproduces a dark card is
+     harder to read after photocopying, which is what happens to most of
+     these documents. */
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    font-size: 11.5pt;
+    line-height: 1.5;
+  }
+
+  @page {
+    size: A4;
+    /* Wide enough on the left for a punched hole or a court file's stitch. */
+    margin: 20mm 16mm 18mm 22mm;
+  }
+
+  /* Chrome, controls, and anything that only makes sense on a screen. */
+  nav,
+  #chatbot-root,
+  [role="tablist"],
+  button,
+  select,
+  input,
+  textarea,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Cards lose their card-ness — borders and rounding are screen
+     affordances, and on paper they read as boxes drawn around nothing. */
+  .rounded-2xl,
+  .rounded-xl {
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin-bottom: 6mm !important;
+  }
+
+  /* A generated document is the point of the page it sits on. */
+  pre {
+    font-family: "Times New Roman", Georgia, serif !important;
+    font-size: 12pt !important;
+    line-height: 1.6 !important;
+    white-space: pre-wrap !important;
+    word-break: normal !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    /* Signature blocks and verification clauses must not be orphaned from
+       the text they attest to. */
+    orphans: 3;
+    widows: 3;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  /* A deadline, a fee, a limitation note — each is a unit of meaning and
+     is worthless split in half. */
+  li,
+  dl > div,
+  .animate-fade-in-up > * {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Motion has no meaning on paper, and an element mid-animation can print
+     mid-transform — a heading at half opacity, or a bar scaled to nothing. */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  /* A printed page has no address bar, so a link's destination is lost
+     unless it is written out. Internal hrefs and anchors would only add
+     noise, so they are left alone. */
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 9.5pt;
+    word-break: break-all;
+  }
+
+  /* Provenance, on every sheet that leaves the building. Someone reading
+     this on paper months later should be able to tell where it came from
+     and that a human was meant to check it. */
+  body::after {
+    content: "Generated by Nyaysetu — a template, not legal advice. Free legal aid: 15100.";
+    display: block;
+    margin-top: 8mm;
+    padding-top: 3mm;
+    border-top: 0.4pt solid #000;
+    font-size: 9pt;
+  }
 }

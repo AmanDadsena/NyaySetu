@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Boolean, CheckConstraint
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Date, Boolean, CheckConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -31,6 +31,7 @@ class User(Base):
     
     messages_sent = relationship("Message", back_populates="sender", foreign_keys="Message.sender_id", cascade="all, delete-orphan")
     messages_received = relationship("Message", back_populates="receiver", foreign_keys="Message.receiver_id", cascade="all, delete-orphan")
+    saved_deadlines = relationship("SavedDeadline", back_populates="user", cascade="all, delete-orphan")
 
 
 class Case(Base):
@@ -70,3 +71,45 @@ class Message(Base):
     sender = relationship("User", back_populates="messages_sent", foreign_keys=[sender_id])
     receiver = relationship("User", back_populates="messages_received", foreign_keys=[receiver_id])
     case = relationship("Case", back_populates="messages")
+
+
+class SavedDeadline(Base):
+    """
+    A deadline a user has asked to keep track of.
+
+    The calculator answers once and is forgotten. A saved deadline is the part
+    that actually prevents a right lapsing: the user comes back, or a digest
+    reaches them, while there is still time to act.
+
+    `matter_reference` is the user's own label for the case — a client name, a
+    cheque number — because someone tracking nine deadlines needs to tell them
+    apart at a glance.
+    """
+
+    __tablename__ = "saved_deadlines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # What was calculated. rule_id refers to app.tools.limitation.
+    rule_id = Column(String(64), nullable=False)
+    rule_label = Column(String(200), nullable=False)
+    citation = Column(String(200), nullable=True)
+
+    matter_reference = Column(String(120), nullable=True)
+    event_date = Column(Date, nullable=False)
+    deadline_date = Column(Date, nullable=False, index=True)
+
+    notes = Column(Text, nullable=True)
+    completed = Column(Boolean, default=False, nullable=False)
+    #: Set once a reminder has gone out, so a digest does not repeat itself.
+    last_notified_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    user = relationship("User", back_populates="saved_deadlines")

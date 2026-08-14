@@ -28,3 +28,17 @@ Thumbs.db
 # ── Misc ─────────────────────────────────────────────────────
 *.log
 npm-debug.log*
+
+# ── Local database (never commit — contains user records) ────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Retrieval feedback log (never commit — contains users' legal questions) ────
+# Written only when NYAYSETU_FEEDBACK_LOG is set. See app/rag/feedback.py.
+feedback.jsonl
+backend/data/feedback.jsonl
+
+# ── Local debugging scratch (not part of the project) ─────────
+/analyze.html
+/check_url*.py

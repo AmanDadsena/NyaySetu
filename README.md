@@ -9,151 +9,222 @@ pinned: false
 
 # Nyaysetu
 
-A full-stack web application built with **Next.js** (frontend) and **FastAPI** (backend).
+A legal-information assistant for India that answers from cited statute rather
+than from a model's memory, in eight languages, with a toolkit for the things
+people otherwise pay someone to work out: the deadline, the right forum, the
+paperwork, and what it all costs.
+
+Next.js frontend, FastAPI backend.
 
 ---
 
-## Project Structure
+## How it answers
+
+The dependency most systems take on a language model is inverted here.
+**Retrieval produces the law; generation only phrases it.** Providers are tried
+in order — a local model via Ollama, then a hosted model, then an extractive
+answer composed from the retrieved passages themselves. The last path needs no
+key, no quota and no network, and it cannot invent a section number because it
+never writes one.
+
+The corpus is **152 curated passages across 92 Acts**, each carrying its act,
+its section and a verifiable source. Retrieval is hybrid:
+
+- **BM25** over an inverted index — strong on exact legal vocabulary.
+- **A cross-lingual lexicon** of 2,009 entries mapping legal terms in seven
+  Indian languages onto the English the corpus uses, with prefix and stem
+  matching so inflected forms still land.
+- **Multilingual embeddings**, optional, fused with BM25 by reciprocal rank.
+
+Deciding a question is out of corpus is treated as a feature, not a failure.
+Several guards have to agree before an answer is produced at all, because a
+confident wrong answer is the worst outcome for a legal tool.
+
+## Measured, not asserted
+
+`python -m app.rag.eval` is the gate for any change to the corpus, the lexicon
+or the retriever. It exits non-zero on regression.
+
+| | |
+|---|---|
+| questions | 131 |
+| hit@1 | 92.4% |
+| hit@3 | 100% |
+| MRR | 0.961 |
+| false positives | 0 / 14 |
+
+Cross-lingual results are scored **separately**, because an aggregate dominated
+by English hides the failure completely: 70 questions across seven languages,
+100% answered, 93% hit@1, 100% hit@3. That block has caught regressions that
+every English metric stayed green through.
+
+---
+
+## The toolkit
+
+None of it calls a model. Lookup tables and calendar arithmetic, so answers are
+instant, identical every time, and cite the provision they rely on.
+
+| tool | covers |
+|---|---|
+| Case plan | 13 situations → forum, deadlines, cost, paperwork, next steps |
+| Deadlines | 20 limitation rules, with Section 4 resolved against a court calendar |
+| Forum router | 13 problem types, tiered by claim value where it matters |
+| Documents | 9 templates — RTI, consumer notice, Section 138 demand, and others |
+| Court fees | 7 matter types, State slabs where they apply |
+| Case timeline | 7 matter types, every stage dated at once |
+| Stamp duty | 8 instruments |
+| Maintenance | statutory range with the precedents behind it |
+| Citations | pulls the authorities out of a judgment |
+
+The **case plan** is the entry point: one situation and one date produce the
+whole answer, composed from the tools above rather than reimplementing them, so
+it can never disagree with the calculator it came from.
+
+The lookup tables are also served to the browser and the arithmetic repeated
+there, so the deadline calculator **works with no network**. The duplication is
+held honest by a parity check that runs every rule through both implementations.
+
+---
+
+## Project structure
 
 ```
 Nyaysetu/
-├── frontend/                  # Next.js App Router + Tailwind CSS + shadcn/ui
-│   ├── src/
-│   │   ├── app/               # App Router pages and layouts
-│   │   │   ├── layout.tsx     # Root layout
-│   │   │   ├── page.tsx       # Home page
-│   │   │   └── globals.css    # Global styles (Tailwind + shadcn theme)
-│   │   ├── components/
-│   │   │   └── ui/            # shadcn/ui components (auto-generated)
-│   │   │       └── button.tsx
-│   │   └── lib/
-│   │       └── utils.ts       # Utility functions (cn helper, etc.)
-│   ├── public/                # Static assets
-│   ├── components.json        # shadcn/ui configuration
-│   ├── next.config.ts         # Next.js configuration
-│   ├── postcss.config.mjs     # PostCSS config (Tailwind v4)
-│   ├── tsconfig.json          # TypeScript configuration
-│   ├── eslint.config.mjs      # ESLint configuration
-│   └── package.json           # Node.js dependencies and scripts
+├── frontend/                     # Next.js 16 App Router, Tailwind v4
+│   └── src/
+│       ├── app/                  # routes: analyze, toolkit, lawyers, cases…
+│       ├── components/           # Chatbot, PassageReader, toolkit/*
+│       └── lib/
+│           ├── i18n/             # 100 keys × 8 locales
+│           ├── toolkit/          # client-side lookup tables (offline)
+│           └── auth/             # session + sign-in gate
 │
-├── backend/                   # FastAPI REST API
+├── backend/
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py            # Application entry point (CORS, routers)
-│   │   └── routers/
-│   │       ├── __init__.py
-│   │       └── health.py      # Health-check endpoint
-│   ├── venv/                  # Python virtual environment (gitignored)
-│   ├── requirements.txt       # Python dependencies
-│   └── .env.example           # Environment variable template
+│   │   ├── rag/
+│   │   │   ├── corpus*.py        # 152 passages, three volumes
+│   │   │   ├── retriever.py      # BM25 + embeddings, fused by rank
+│   │   │   ├── lexicon.py        # cross-lingual bridge
+│   │   │   ├── engine.py         # provider chain + prompt
+│   │   │   ├── eval.py           # the gate
+│   │   │   └── feedback.py       # where the corpus is thin (opt-in)
+│   │   ├── tools/                # limitation, forum, fees, plan, …
+│   │   └── routers/              # auth, bot, cases, tools, analyze
+│   └── scripts/
+│       ├── ablate.py             # which part of the stack does the work
+│       ├── check_offline_parity.py
+│       ├── check_fabrication.py
+│       └── gaps.py
 │
-├── .gitignore                 # Root-level gitignore
-└── README.md                  # This file
+├── Dockerfile                    # Hugging Face Space
+└── render.yaml                   # Render web service
 ```
 
 ---
 
-## Tech Stack
+## Getting started
 
-| Layer     | Technology                                      |
-| --------- | ----------------------------------------------- |
-| Frontend  | Next.js 16 (App Router), React 19, TypeScript   |
-| Styling   | Tailwind CSS v4, shadcn/ui                      |
-| Backend   | FastAPI, Uvicorn, Pydantic v2                    |
-| Language  | TypeScript (frontend), Python 3.14 (backend)    |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- **Node.js** ≥ 20 LTS and **npm**
-- **Python** ≥ 3.10
-
-### 1. Frontend
+**Prerequisites:** Node.js ≥ 20, Python ≥ 3.10.
 
 ```bash
-cd frontend
-npm install        # Install dependencies (already done on init)
-npm run dev        # Start dev server on http://localhost:3000
-```
-
-### 2. Backend
-
-```bash
+# Backend
 cd backend
-
-# Create and activate virtual environment
 python -m venv venv
-# Windows
-venv\Scripts\activate
-# macOS / Linux
-source venv/bin/activate
-
+venv\Scripts\activate          # Windows;  source venv/bin/activate elsewhere
 pip install -r requirements.txt
-
-# Copy and configure environment variables
-cp .env.example .env
-
-# Run the development server
+cp .env.example .env           # everything in it is optional
 uvicorn app.main:app --reload --port 8000
 ```
 
-The API will be available at **http://localhost:8000** with interactive docs at **http://localhost:8000/docs**.
-
----
-
-## Available Scripts
-
-### Frontend (`frontend/`)
-
-| Command           | Description                      |
-| ----------------- | -------------------------------- |
-| `npm run dev`     | Start Next.js development server |
-| `npm run build`   | Create production build          |
-| `npm run start`   | Start production server          |
-| `npm run lint`    | Run ESLint                       |
-
-### Backend (`backend/`)
-
-| Command                                          | Description                     |
-| ------------------------------------------------ | ------------------------------- |
-| `uvicorn app.main:app --reload`                  | Start FastAPI with hot reload   |
-| `pip install -r requirements.txt`                | Install dependencies            |
-
----
-
-## Adding shadcn/ui Components
-
-shadcn/ui is already initialized. To add more components:
-
 ```bash
+# Frontend
 cd frontend
-npx shadcn@latest add <component-name>
-
-# Examples:
-npx shadcn@latest add card
-npx shadcn@latest add dialog
-npx shadcn@latest add input
+npm install
+npm run dev                    # http://localhost:3000
 ```
 
-Browse available components at [ui.shadcn.com](https://ui.shadcn.com/docs/components).
+API docs at **http://localhost:8000/docs**.
+
+The assistant works with no configuration at all — it answers from the corpus
+extractively. Everything in `.env` only improves how an answer is *phrased*,
+never its legal content.
+
+### Optional: better phrasing
+
+```bash
+ollama pull gemma3:4b          # local, no key, no quota
+```
+
+Note that `NYAYSETU_DISABLE_OLLAMA=1` is set in both production configs. A 4B
+model asked in Hindi who the current Chief Justice is answers with a name from
+its training data that the corpus never contains, and naming a sitting judge
+wrongly is worse than the few seconds it saves. See `check_fabrication.py`.
 
 ---
 
-## API Endpoints
+## Checks
 
-| Method | Path           | Description            |
-| ------ | -------------- | ---------------------- |
-| GET    | `/`            | API welcome message    |
-| GET    | `/api/health`  | Health check           |
-| GET    | `/docs`        | Swagger UI (auto-gen)  |
-| GET    | `/redoc`       | ReDoc (auto-gen)       |
+Run from `backend/`. On Windows set `PYTHONIOENCODING=utf-8`, or the Indic
+output crashes on cp1252.
+
+| command | what it answers |
+|---|---|
+| `python -m app.rag.eval` | Does retrieval still work, in every language? |
+| `python -m scripts.ablate` | Which part of the stack is doing the work? |
+| `python scripts/check_offline_parity.py` | Do server and browser agree? (160 cases) |
+| `python -m scripts.check_fabrication` | Does the model invent facts? (8 languages) |
+| `python -m scripts.gaps` | Where is the corpus thin? (needs the opt-in log) |
+
+Frontend: `npx tsc --noEmit` and `npm run build`.
 
 ---
+
+## API
+
+| group | endpoints |
+|---|---|
+| Assistant | `POST /api/bot/chat`, `/chat/stream`, `GET /api/bot/health` |
+| Toolkit | `GET,POST /api/tools/{plan,limitation,forum,documents,fees,timeline,stamp-duty,maintenance}` |
+| | `POST /api/tools/citations`, `GET /api/tools/{calendar,bundle}` |
+| Analyze | `POST /api/analyze`, `GET /api/analyze/refine/{id}` |
+| Auth | `POST /api/auth/{register,login}` |
+| Cases | `GET,POST /api/cases`, `PATCH /api/cases/{id}/{assign,status}` |
+| Deadlines | `GET,POST /api/deadlines`, `GET /api/deadlines/digest` |
+| Directory | `GET /api/lawyers` |
+| Messaging | `POST /api/chat`, `GET /api/chat/{user_id}` |
+
+Full schema at `/docs`.
+
+---
+
+## Privacy
+
+The feedback log that records where retrieval misses is **off unless
+`NYAYSETU_FEEDBACK_LOG` is set**. It stores no user id, account or IP; the
+session key groups two consecutive requests and maps to nothing. Question text
+is kept only under a second flag, and the log is gitignored — these are people's
+legal problems.
+
+---
+
+## Deployment
+
+`render.yaml` for the Render web service, `Dockerfile` for the Hugging Face
+Space. Two values must be set in the dashboard rather than the repo:
+
+- `DATABASE_URL` — until it points at Postgres, a restart wipes every account.
+- `GEMINI_API_KEY` — optional; without it answers fall to the extractive path.
+
+---
+
+## Disclaimer
+
+Nyaysetu provides **legal information, not legal advice**. Every answer cites
+the provision it rests on so it can be checked. For a decision that matters,
+consult an advocate — free legal aid is a statutory right for most of the people
+this is built for, and the assistant will tell you how to claim it.
 
 ## License
 
 MIT
-
