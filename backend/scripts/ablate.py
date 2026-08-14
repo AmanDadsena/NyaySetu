@@ -44,7 +44,13 @@ from app.rag.eval import (  # noqa: E402
     CASES,
     MULTILINGUAL_CASES,
     NEGATIVE_CASES,
+    NEGATIVE_MULTILINGUAL,
 )
+
+#: Off-topic questions in every language, as one list. The guard ablation is
+#: about false positives, and counting only the English ones would understate
+#: what a loosened semantic gate lets through.
+ALL_NEGATIVES: list[str] = NEGATIVE_CASES + [q for _lang, q in NEGATIVE_MULTILINGUAL]
 from app.rag.retriever import Retriever  # noqa: E402
 
 #: Sampling seed. Fixed so the corpus curve is the same on every machine.
@@ -87,7 +93,7 @@ def _score_subset(
         if acceptable & set(ids):
             m3 += 1
 
-    false_positives = sum(1 for q in NEGATIVE_CASES if retriever.search(q, top_k=3))
+    false_positives = sum(1 for q in ALL_NEGATIVES if retriever.search(q, top_k=3))
 
     n, m = max(len(english), 1), max(len(multilingual), 1)
     return {

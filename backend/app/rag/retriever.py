@@ -97,10 +97,34 @@ RELATIVE_FLOOR = float(os.environ.get("NYAYSETU_RELATIVE_FLOOR", "0.62"))
 STRONG_BM25 = float(os.environ.get("NYAYSETU_STRONG_BM25", "16.0"))
 
 #: Minimum cosine similarity for the dense index alone to admit a query as
-#: in-corpus, when there is no lexical evidence at all. Calibrated in the same
-#: way as the BM25 floor and on the same eval: see `NEGATIVE_CASES`. This only
-#: applies when sentence-transformers is installed; with BM25 alone it is unused.
-MIN_DENSE_SIMILARITY = float(os.environ.get("NYAYSETU_MIN_DENSE", "0.45"))
+#: in-corpus, when there is no lexical evidence at all. Only applies when
+#: sentence-transformers is installed; with BM25 alone it is unused.
+#:
+#: Swept against off-topic questions in all eight languages, because a semantic
+#: gate guards a multilingual embedding space and probing it only in English
+#: measures the wrong thing — English negatives are the ones the lexical guards
+#: already catch. Dense-only cross-lingual coverage against false positives, out
+#: of 14 English and 10 non-English off-topic questions:
+#:
+#:     gate   answered   false positives
+#:     0.25     91.1%      3 en + 2 non-en
+#:     0.30     91.1%      1 en + 2 non-en
+#:     0.35     85.7%      none
+#:     0.45     58.9%      none      (previous value)
+#:
+#: 0.35 buys 27 points of coverage for nothing measurable, and is where this
+#: sits. Note what the sweep also shows: the distributions **overlap**. The
+#: highest-scoring off-topic question ("ನಾಳೆ ಹವಾಮಾನ ಹೇಗಿರುತ್ತದೆ", tomorrow's
+#: weather) reaches 0.313, while a genuine question about unpaid salary in Tamil
+#: reaches only 0.237. No threshold separates those, so this is a trade-off
+#: rather than a boundary, and the margin above the worst negative is about
+#: 0.04. Widen `NEGATIVE_MULTILINGUAL` before trusting a lower value.
+#:
+#: In the shipped configuration this changes nothing: with the lexicon on, every
+#: eval language already has lexical evidence and the metrics are identical at
+#: every gate from 0.35 up. It matters for a language nobody has written lexicon
+#: entries for, which is the case this exists to cover.
+MIN_DENSE_SIMILARITY = float(os.environ.get("NYAYSETU_MIN_DENSE", "0.35"))
 
 
 #: Suffixes stripped to a common root, longest first so "-ations" is tried

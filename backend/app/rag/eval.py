@@ -31,9 +31,18 @@ from .retriever import get_retriever
 _SCRIPTS = ("DEVANAGARI", "GUJARATI", "TAMIL", "TELUGU", "BENGALI", "KANNADA")
 
 
+#: Danda and double danda. They sit in the Devanagari block but are shared
+#: sentence punctuation across Indic scripts — Bengali, Gujarati and the rest
+#: all use them — so they say nothing about which script a string is written in.
+#: Counting them flagged the Bengali refusal as containing Devanagari.
+_SHARED_PUNCTUATION = {"।", "॥"}
+
+
 def _scripts_in(term: str) -> set[str]:
     found = set()
     for char in term:
+        if char in _SHARED_PUNCTUATION:
+            continue
         try:
             name = unicodedata.name(char)
         except ValueError:
@@ -42,6 +51,43 @@ def _scripts_in(term: str) -> set[str]:
             if name.startswith(script):
                 found.add(script)
     return found
+
+
+#: Which script each UI language must be written in.
+_EXPECTED_SCRIPT = {
+    "Hindi": "DEVANAGARI", "Marathi": "DEVANAGARI", "Gujarati": "GUJARATI",
+    "Tamil": "TAMIL", "Telugu": "TELUGU", "Bengali": "BENGALI",
+    "Kannada": "KANNADA",
+}
+
+
+def check_translations() -> list[str]:
+    """
+    Catch the same hand-written script mixing in the user-facing strings.
+
+    The lexicon check below covers retrieval terms. This covers the refusal
+    message, which is the one reply a user sees when nothing matched — and the
+    only one written by hand in eight languages rather than produced by a model.
+    A Devanagari consonant inside a Tamil sentence renders as a stray glyph and
+    was shipped exactly that way once.
+    """
+    from .engine import _NO_MATCH
+
+    problems = []
+    for language, text in _NO_MATCH.items():
+        expected = _EXPECTED_SCRIPT.get(language)
+        if expected is None:  # English, or a language with no script to check
+            continue
+        found = _scripts_in(text) - {expected}
+        if found:
+            problems.append(f"{language} refusal contains {sorted(found)}")
+        if not _scripts_in(text):
+            problems.append(f"{language} refusal has no {expected} characters at all")
+
+    missing = sorted(set(_EXPECTED_SCRIPT) - set(_NO_MATCH))
+    if missing:
+        problems.append(f"no localised refusal for {missing} — they fall back to English")
+    return problems
 
 
 def check_lexicon() -> list[str]:
@@ -253,6 +299,31 @@ NEGATIVE_CASES: list[str] = [
     "Which movie should I watch tonight?",
 ]
 
+#: Off-topic questions in the seven non-English UI languages.
+#:
+#: These exist because the semantic guard protects a *multilingual* embedding
+#: space, and testing it only in English measures the wrong thing: English
+#: off-topic questions are the ones the lexical guards already catch. Lowering
+#: `MIN_DENSE_SIMILARITY` from 0.45 to 0.30 admits two of these while admitting
+#: only one more English one, so without them the gate looks safer than it is.
+#:
+#: Worth knowing when tuning that gate: these overlap the genuine questions.
+#: "ನಾಳೆ ಹವಾಮಾನ ಹೇಗಿರುತ್ತದೆ" (tomorrow's weather) scores 0.313 against the
+#: corpus, while a real Tamil question about unpaid salary scores 0.237. No
+#: threshold separates them; the gate is a trade-off, not a boundary.
+NEGATIVE_MULTILINGUAL: list[tuple[str, str]] = [
+    ("hi", "आज मौसम कैसा है"),
+    ("hi", "सबसे अच्छी बिरयानी कहाँ मिलती है"),
+    ("mr", "उद्या क्रिकेट सामना कधी आहे"),
+    ("gu", "શ્રેષ્ઠ મોબાઇલ ફોન કયો છે"),
+    ("ta", "இன்று வானிலை எப்படி இருக்கும்"),
+    ("ta", "நல்ல உணவகம் எங்கே உள்ளது"),
+    ("te", "ఈరోజు సినిమా ఏమిటి"),
+    ("bn", "আজ খেলার স্কোর কত"),
+    ("kn", "ಒಳ್ಳೆಯ ಹೋಟೆಲ್ ಎಲ್ಲಿದೆ"),
+    ("kn", "ನಾಳೆ ಹವಾಮಾನ ಹೇಗಿರುತ್ತದೆ"),
+]
+
 #: The same eight questions asked in each of the seven non-English languages the
 #: UI offers, against an English corpus. This is the metric that says whether a
 #: Tamil speaker gets the same product an English speaker does — and it is
@@ -382,6 +453,11 @@ def run(verbose: bool = True) -> dict[str, float]:
 
     total = len(CASES)
     false_positives = [q for q in NEGATIVE_CASES if retriever.search(q, top_k=3)]
+    ml_false_positives = [
+        f"[{lang}] {q}"
+        for lang, q in NEGATIVE_MULTILINGUAL
+        if retriever.search(q, top_k=3)
+    ]
 
     # Cross-lingual, scored per language so one strong script cannot carry the
     # rest. `answered` is tracked separately from correctness: returning the
@@ -418,6 +494,11 @@ def run(verbose: bool = True) -> dict[str, float]:
         "ml_hit@1": ml_hits_1 / ml_total if ml_total else 0.0,
         "ml_hit@3": ml_hits_3 / ml_total if ml_total else 0.0,
         "ml_answered": ml_answered / ml_total if ml_total else 0.0,
+        "ml_false_positive_rate": (
+            len(ml_false_positives) / len(NEGATIVE_MULTILINGUAL)
+            if NEGATIVE_MULTILINGUAL
+            else 0.0
+        ),
     }
 
     if verbose:
@@ -450,6 +531,10 @@ def run(verbose: bool = True) -> dict[str, float]:
                   f"{stats['hit@1'] / n:>6.0%}  {stats['hit@3'] / n:>6.0%}")
         print(f"  {'all':4}  {metrics['ml_answered']:>8.0%}  "
               f"{metrics['ml_hit@1']:>6.0%}  {metrics['ml_hit@3']:>6.0%}")
+        print(f"\n  off-topic, non-English   "
+              f"{len(ml_false_positives)}/{len(NEGATIVE_MULTILINGUAL)} answered")
+        for question in ml_false_positives:
+            print(f"    {question}")
 
         if ml_misses:
             print(f"\n  {len(ml_misses)} missed:")
@@ -462,7 +547,7 @@ def run(verbose: bool = True) -> dict[str, float]:
 
 
 if __name__ == "__main__":
-    lexicon_problems = check_lexicon()
+    lexicon_problems = check_lexicon() + check_translations()
     if lexicon_problems:
         print(f"\n  {len(lexicon_problems)} malformed lexicon entries:")
         for problem in lexicon_problems:
@@ -478,6 +563,7 @@ if __name__ == "__main__":
         0
         if results["hit@3"] >= 0.85
         and results["false_positive_rate"] == 0
+        and results["ml_false_positive_rate"] == 0
         and results["ml_hit@3"] >= 0.85
         and results["ml_answered"] >= 0.95
         else 1
