@@ -379,6 +379,10 @@ class LimitationResult:
     #: unless it fell on a weekend or holiday.
     filing_date: str | None = None
     filing_date_confidence: str = "high"
+    #: Why the filing date moved — one entry per non-working day skipped. Kept
+    #: out of `notes` so a caller can present it as data rather than as a
+    #: sentence full of ISO dates.
+    filing_reasons: list[str] = field(default_factory=list)
 
 
 def _add_period(start: date, rule: LimitationRule) -> date:
@@ -456,12 +460,6 @@ def calculate(rule_id: str, event_date: date, today: date | None = None) -> Limi
     # Section 4: if the last day is not a working day, the filing date moves
     # forward. Resolved exactly rather than left as a caveat.
     filing = holidays.resolve_filing_date(deadline)
-    if filing["moved"]:
-        notes.append(
-            f"{deadline.isoformat()} is not a working day "
-            f"({'; '.join(filing['reasons'])}), so the last day to file is "
-            f"{filing['filing_date']}. {filing['note']}"
-        )
 
     return LimitationResult(
         rule_id=rule.id,
@@ -477,6 +475,7 @@ def calculate(rule_id: str, event_date: date, today: date | None = None) -> Limi
         urgency=urgency,
         filing_date=filing["filing_date"],
         filing_date_confidence=filing["confidence"],
+        filing_reasons=list(filing["reasons"]),
         condonable=rule.condonable,
         condonation_note=rule.condonation_note,
         notes=notes,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useAuthGate } from "@/lib/auth/AuthGate";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
@@ -157,6 +158,7 @@ function RiskBadge({ level }: { level: string }) {
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 export default function Home() {
+  const { requireAuth } = useAuthGate();
   const [isProcessing, setIsProcessing] = useState(false);
   const [text, setText] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -242,7 +244,7 @@ export default function Home() {
   }, []);
 
   // ── Process document ───────────────────────────────────────────────────
-  const handleProcess = async () => {
+  const runAnalysis = async () => {
     setIsProcessing(true);
     setError(null);
     setResult(null);
@@ -286,6 +288,11 @@ export default function Home() {
       setIsProcessing(false);
     }
   };
+
+  // The document stays pasted and the options stay chosen while they sign in,
+  // and the analysis then runs by itself.
+  const handleProcess = () =>
+    requireAuth(runAnalysis, "Sign in to analyse this document.");
 
   const hasInput = uploadedFile !== null || text.trim().length > 0;
 

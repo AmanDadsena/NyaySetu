@@ -390,7 +390,9 @@ EXTRA_CORPUS: list[Passage] = [
             "cause, but this does not apply to the original suit."
         ),
         source_url=INDIA_CODE,
-        topics=("limitation", "time limit", "deadline", "filing", "appeal", "suit"),
+        topics=("limitation", "time limit", "deadline", "filing", "appeal", "suit",
+                "how long do i have to file", "how much time to file a case", "too late to sue"),
+        also_known_as=("time barred", "limitation period", "how long to file a civil suit"),
     ),
     Passage(
         id="defamation",

@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, IndianRupee, Loader2 } from "lucide-react";
+import { useAuthGate } from "@/lib/auth/AuthGate";
 import {
   API,
   Label,
@@ -39,6 +40,7 @@ interface FeeResult {
 }
 
 export function FeesTool({ onError }: { onError: (m: string | null) => void }) {
+  const { requireAuth } = useAuthGate();
   const [matters, setMatters] = useState<FeeMatter[]>([]);
   const [states, setStates] = useState<{ id: string; label: string }[]>([]);
   const [matterId, setMatterId] = useState("");
@@ -62,7 +64,7 @@ export function FeesTool({ onError }: { onError: (m: string | null) => void }) {
     [matters, matterId],
   );
 
-  const run = async () => {
+  const compute = async () => {
     setBusy(true);
     onError(null);
     try {
@@ -79,6 +81,8 @@ export function FeesTool({ onError }: { onError: (m: string | null) => void }) {
       setBusy(false);
     }
   };
+
+  const run = () => requireAuth(compute, "Sign in to estimate what filing will cost.");
 
   return (
     <div className="space-y-5">

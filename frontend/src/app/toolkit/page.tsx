@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Toolkit — the three things people otherwise pay a lawyer to do for them.
+ * Toolkit — the things people otherwise pay a lawyer to do for them.
  *
- * Deadline, forum, and paperwork. None of it calls a model: the backend
- * answers from lookup tables and calendar arithmetic, so results are instant,
- * identical every time, and correct offline. For something that tells a person
+ * Deadline, forum, paperwork, and what it all costs. None of it calls a model:
+ * the backend answers from lookup tables and calendar arithmetic, so results
+ * are instant and identical every time. For something that tells a person
  * whether they still have the right to sue, that matters more than eloquence.
  */
 
@@ -27,15 +27,45 @@ import {
   BellRing,
   Share2,
   MessageCircle,
+  BadgeIndianRupee,
+  Scale as ScaleIcon,
+  FileSearch,
+  Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TimelineTool } from "@/components/toolkit/TimelineTool";
 import { FeesTool } from "@/components/toolkit/FeesTool";
 import { TrackerTool } from "@/components/toolkit/TrackerTool";
+import { useAuthGate } from "@/lib/auth/AuthGate";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { CitationsTool } from "@/components/toolkit/CitationsTool";
+import { StampDutyTool } from "@/components/toolkit/StampDutyTool";
+import { MaintenanceTool } from "@/components/toolkit/MaintenanceTool";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-type Tab = "deadline" | "forum" | "draft" | "timeline" | "fees" | "tracker";
+type Tab =
+  | "deadline"
+  | "forum"
+  | "draft"
+  | "timeline"
+  | "fees"
+  | "tracker"
+  | "stampduty"
+  | "maintenance"
+  | "citations";
+
+const TABS: Tab[] = [
+  "deadline",
+  "forum",
+  "draft",
+  "timeline",
+  "fees",
+  "tracker",
+  "stampduty",
+  "maintenance",
+  "citations",
+];
 
 // ── Shared types ───────────────────────────────────────────────────────
 interface LimitationRule {
@@ -60,6 +90,19 @@ interface LimitationResult {
   condonable: boolean;
   condonation_note: string;
   notes: string[];
+  /** Last day the court is actually open, after Section 4. */
+  filing_date: string | null;
+  /** high where the court's notified calendar was consulted, partial otherwise. */
+  filing_date_confidence: string;
+  /** One entry per non-working day skipped, in the order they were skipped. */
+  filing_reasons: string[];
+}
+
+/** Whether the deployment has a court's notified holiday list to work from. */
+interface CalendarStatus {
+  configured: boolean;
+  notified_days_this_year: number;
+  fixed_holidays: number;
 }
 
 interface ForumRule {
@@ -198,8 +241,133 @@ function DeadlineDial({ result }: { result: LimitationResult }) {
   );
 }
 
+/**
+ * Section 4 of the Limitation Act: where the period expires on a day the court
+ * is closed, you may file on the next day it opens. That is a real extra day
+ * or two, and people miss it.
+ *
+ * The panel shows the working day separately from the statutory deadline
+ * rather than replacing it, and says which days were skipped. Where no
+ * notified court calendar is configured the backend reports `partial` — only
+ * weekends and fixed national holidays were checked — and that is stated
+ * plainly, because a movable festival could still push the date later and
+ * relying on the earlier date is the safe error.
+ */
+function FilingDayPanel({
+  result,
+  calendar,
+}: {
+  result: LimitationResult;
+  calendar: CalendarStatus | null;
+}) {
+  if (!result.has_limitation || !result.filing_date || !result.deadline) return null;
+
+  const moved = result.filing_date !== result.deadline;
+  const partial = result.filing_date_confidence !== "high";
+
+  return (
+    <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+        <Landmark className="h-4 w-4 shrink-0 text-gray-400" />
+        Last day the court is open
+      </h3>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg bg-gray-50 px-3.5 py-2.5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            Statutory deadline
+          </p>
+          <p className="mt-0.5 text-sm font-medium tabular-nums text-gray-700">
+            {new Date(result.deadline).toLocaleDateString("en-IN", {
+              weekday: "short",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+        <div
+          className={cn(
+            "rounded-lg px-3.5 py-2.5",
+            moved ? "bg-emerald-50" : "bg-gray-50",
+          )}
+        >
+          <p
+            className={cn(
+              "text-xs font-semibold uppercase tracking-wider",
+              moved ? "text-emerald-600" : "text-gray-400",
+            )}
+          >
+            You can file until
+          </p>
+          <p
+            className={cn(
+              "mt-0.5 text-sm font-medium tabular-nums",
+              moved ? "text-emerald-900" : "text-gray-700",
+            )}
+          >
+            {new Date(result.filing_date).toLocaleDateString("en-IN", {
+              weekday: "short",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-3 text-sm text-gray-600">
+        {moved ? (
+          <>
+            The period expires on a day the court is closed, so Section 4 of the
+            Limitation Act, 1963 lets you file on the next working day.
+          </>
+        ) : (
+          <>
+            The deadline falls on a working day, so Section 4 gives you nothing
+            extra here.
+          </>
+        )}
+      </p>
+
+      {result.filing_reasons.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {result.filing_reasons.map((reason, i) => (
+            <li key={i} className="flex gap-2 text-xs text-gray-500">
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-300" />
+              Skipped: {reason}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {partial && (
+        <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-800">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          Only weekends and fixed national holidays were checked
+          {calendar && !calendar.configured
+            ? " — no notified court calendar is configured"
+            : ""}
+          . Movable festivals are not, because their dates shift and a wrong one
+          would move a filing deadline. Treat this as the earliest safe date and
+          confirm the court&rsquo;s calendar before relying on the extra days.
+        </p>
+      )}
+
+      {!partial && calendar?.configured && (
+        <p className="mt-2 text-xs text-gray-500">
+          Checked against {calendar.notified_days_this_year} notified holidays for
+          this year, plus weekends.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────
 export default function ToolkitPage() {
+  const { requireAuth } = useAuthGate();
+  const t = useT();
   const [tab, setTab] = useState<Tab>("deadline");
   const [shared, setShared] = useState(false);
 
@@ -208,6 +376,7 @@ export default function ToolkitPage() {
   const [limId, setLimId] = useState("");
   const [limDate, setLimDate] = useState("");
   const [limResult, setLimResult] = useState<LimitationResult | null>(null);
+  const [calendar, setCalendar] = useState<CalendarStatus | null>(null);
 
   // Forum
   const [forumRules, setForumRules] = useState<ForumRule[]>([]);
@@ -231,9 +400,7 @@ export default function ToolkitPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("t") as Tab | null;
-    if (t && ["deadline", "forum", "draft", "timeline", "fees", "tracker"].includes(t)) {
-      setTab(t);
-    }
+    if (t && TABS.includes(t)) setTab(t);
     if (params.get("rule")) setLimId(params.get("rule")!);
     if (params.get("on")) setLimDate(params.get("on")!);
     if (params.get("problem")) setForumId(params.get("problem")!);
@@ -245,11 +412,13 @@ export default function ToolkitPage() {
       fetch(`${API}/api/tools/limitation`).then((r) => r.json()),
       fetch(`${API}/api/tools/forum`).then((r) => r.json()),
       fetch(`${API}/api/tools/documents`).then((r) => r.json()),
+      fetch(`${API}/api/tools/calendar`).then((r) => r.json()),
     ])
-      .then(([lim, fo, docs]) => {
+      .then(([lim, fo, docs, cal]) => {
         setLimRules(lim.rules ?? []);
         setForumRules(fo.rules ?? []);
         setTemplates(docs.templates ?? []);
+        setCalendar(cal ?? null);
       })
       .catch(() => setError("Could not reach the server. Is the backend running?"));
   }, []);
@@ -376,12 +545,15 @@ export default function ToolkitPage() {
   };
 
   const tabs: { id: Tab; label: string; icon: typeof Clock; blurb: string }[] = [
-    { id: "deadline", label: "Deadline", icon: CalendarClock, blurb: "How long you have left" },
-    { id: "forum", label: "Where to file", icon: MapPin, blurb: "The right court or authority" },
-    { id: "draft", label: "Draft a document", icon: FileText, blurb: "Notices and applications" },
-    { id: "timeline", label: "Case timeline", icon: CalendarDays, blurb: "Every stage, dated at once" },
-    { id: "fees", label: "Court fee", icon: IndianRupee, blurb: "What it costs to file" },
-    { id: "tracker", label: "My deadlines", icon: BellRing, blurb: "Saved and counting down" },
+    { id: "deadline", label: t("toolkit.tab.deadline"), icon: CalendarClock, blurb: t("toolkit.blurb.deadline") },
+    { id: "forum", label: t("toolkit.tab.forum"), icon: MapPin, blurb: t("toolkit.blurb.forum") },
+    { id: "draft", label: t("toolkit.tab.draft"), icon: FileText, blurb: t("toolkit.blurb.draft") },
+    { id: "timeline", label: t("toolkit.tab.timeline"), icon: CalendarDays, blurb: t("toolkit.blurb.timeline") },
+    { id: "fees", label: t("toolkit.tab.fees"), icon: IndianRupee, blurb: t("toolkit.blurb.fees") },
+    { id: "tracker", label: t("toolkit.tab.tracker"), icon: BellRing, blurb: t("toolkit.blurb.tracker") },
+    { id: "stampduty", label: t("toolkit.tab.stampduty"), icon: BadgeIndianRupee, blurb: t("toolkit.blurb.stampduty") },
+    { id: "maintenance", label: t("toolkit.tab.maintenance"), icon: ScaleIcon, blurb: t("toolkit.blurb.maintenance") },
+    { id: "citations", label: t("toolkit.tab.citations"), icon: FileSearch, blurb: t("toolkit.blurb.citations") },
   ];
 
   return (
@@ -389,19 +561,15 @@ export default function ToolkitPage() {
       <div className="mx-auto max-w-4xl">
         <header className="mb-8 animate-fade-in-up">
           <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Legal toolkit
+            {t("toolkit.title")}
           </h1>
-          <p className="mt-2 max-w-2xl text-gray-600">
-            Three things people usually pay for: working out the deadline, finding the
-            right forum, and drafting the notice. All of it runs offline and cites the
-            provision it relies on.
-          </p>
+          <p className="mt-2 max-w-2xl text-gray-600">{t("toolkit.subtitle")}</p>
         </header>
 
         {/* Tabs */}
         <div
           role="tablist"
-          aria-label="Toolkit sections"
+          aria-label={t("toolkit.sections")}
           className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3"
         >
           {tabs.map(({ id, label, icon: Icon, blurb }) => (
@@ -518,18 +686,20 @@ export default function ToolkitPage() {
                 </div>
 
                 <button
-                  onClick={async () => {
-                    const r = await post("/api/tools/limitation", {
-                      rule_id: limId,
-                      event_date: limDate,
-                    });
-                    if (r) setLimResult(r);
-                  }}
+                  onClick={() =>
+                    requireAuth(async () => {
+                      const r = await post("/api/tools/limitation", {
+                        rule_id: limId,
+                        event_date: limDate,
+                      });
+                      if (r) setLimResult(r);
+                    }, t("auth.reason.deadline"))
+                  }
                   disabled={!limId || !limDate || busy}
                   className="flex w-full items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-40 sm:w-auto"
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
-                  Calculate deadline
+                  {busy ? t("toolkit.working") : t("toolkit.calculateDeadline")}
                 </button>
               </div>
             </SectionCard>
@@ -540,6 +710,7 @@ export default function ToolkitPage() {
                   {limResult.label}
                 </h2>
                 <DeadlineDial result={limResult} />
+                <FilingDayPanel result={limResult} calendar={calendar} />
                 {limResult.notes.length > 0 && (
                   <ul className="mt-4 space-y-2">
                     {limResult.notes.map((note, i) => (
@@ -601,18 +772,20 @@ export default function ToolkitPage() {
                 )}
 
                 <button
-                  onClick={async () => {
-                    const r = await post("/api/tools/forum", {
-                      rule_id: forumId,
-                      claim_value: claimValue ? Number(claimValue) : null,
-                    });
-                    if (r) setForumResult(r);
-                  }}
+                  onClick={() =>
+                    requireAuth(async () => {
+                      const r = await post("/api/tools/forum", {
+                        rule_id: forumId,
+                        claim_value: claimValue ? Number(claimValue) : null,
+                      });
+                      if (r) setForumResult(r);
+                    }, t("auth.reason.forum"))
+                  }
                   disabled={!forumId || busy}
                   className="flex w-full items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-40 sm:w-auto"
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                  Find the forum
+                  {busy ? t("toolkit.working") : t("toolkit.findForum")}
                 </button>
               </div>
             </SectionCard>
@@ -774,13 +947,15 @@ export default function ToolkitPage() {
                   </div>
 
                   <button
-                    onClick={async () => {
-                      const r = await post("/api/tools/documents", {
-                        template_id: templateId,
-                        data: formData,
-                      });
-                      if (r) setDoc(r);
-                    }}
+                    onClick={() =>
+                      requireAuth(async () => {
+                        const r = await post("/api/tools/documents", {
+                          template_id: templateId,
+                          data: formData,
+                        });
+                        if (r) setDoc(r);
+                      }, t("auth.reason.draft"))
+                    }
                     disabled={busy}
                     className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-40 sm:w-auto"
                   >
@@ -789,7 +964,7 @@ export default function ToolkitPage() {
                     ) : (
                       <FileText className="h-4 w-4" />
                     )}
-                    Generate document
+                    {busy ? t("toolkit.working") : t("toolkit.generateDocument")}
                   </button>
                 </>
               )}
@@ -880,6 +1055,24 @@ export default function ToolkitPage() {
         {tab === "tracker" && (
           <div className="animate-fade-in-up">
             <TrackerTool onError={setError} />
+          </div>
+        )}
+
+        {tab === "stampduty" && (
+          <div className="animate-fade-in-up">
+            <StampDutyTool onError={setError} />
+          </div>
+        )}
+
+        {tab === "maintenance" && (
+          <div className="animate-fade-in-up">
+            <MaintenanceTool onError={setError} />
+          </div>
+        )}
+
+        {tab === "citations" && (
+          <div className="animate-fade-in-up">
+            <CitationsTool onError={setError} />
           </div>
         )}
       </div>

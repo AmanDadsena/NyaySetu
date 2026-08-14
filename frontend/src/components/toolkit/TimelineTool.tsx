@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Loader2, Lock, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuthGate } from "@/lib/auth/AuthGate";
 import {
   API,
   Label,
@@ -70,6 +71,7 @@ const NATURE_STYLE: Record<Entry["nature"], { chip: string; label: string; icon:
 };
 
 export function TimelineTool({ onError }: { onError: (m: string | null) => void }) {
+  const { requireAuth } = useAuthGate();
   const [matters, setMatters] = useState<MatterType[]>([]);
   const [matterId, setMatterId] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -89,7 +91,7 @@ export function TimelineTool({ onError }: { onError: (m: string | null) => void 
     [matters, matterId],
   );
 
-  const run = async () => {
+  const build = async () => {
     setBusy(true);
     onError(null);
     try {
@@ -106,6 +108,8 @@ export function TimelineTool({ onError }: { onError: (m: string | null) => void 
       setBusy(false);
     }
   };
+
+  const run = () => requireAuth(build, "Sign in to lay out the timeline for your matter.");
 
   return (
     <div className="space-y-5">

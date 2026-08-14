@@ -284,6 +284,152 @@ TEMPLATES: dict[str, Template] = {
         limitation=("suit_money",),
         related=("contract_essentials", "limitation_periods"),
     ),
+
+    # ── Court paperwork ─────────────────────────────────────────────────
+    "vakalatnama": Template(
+        id="vakalatnama",
+        title="Vakalatnama",
+        description=(
+            "The document that authorises an advocate to appear for you. No "
+            "advocate can address the court on your behalf without one on record."
+        ),
+        category="Court paperwork",
+        act="Code of Civil Procedure, 1908",
+        section="Order III Rule 4",
+        fee="A court fee stamp, commonly ₹5 to ₹25, plus the Advocates' Welfare Fund stamp.",
+        fields=_APPLICANT + (
+            Field("party_role", "You are the…",
+                  placeholder="Plaintiff / Defendant / Petitioner / Respondent / Complainant",
+                  help="Use the word the cause title uses for your side."),
+            Field("advocate_name", "Advocate's full name"),
+            Field("advocate_enrolment", "Advocate's enrolment number", required=False,
+                  placeholder="e.g. MAH/1234/2015",
+                  help="On the advocate's Bar Council certificate. Leave blank and "
+                       "the advocate will fill it in."),
+            Field("advocate_address", "Advocate's office address", kind="textarea",
+                  required=False),
+            Field("court_name", "Court or tribunal",
+                  placeholder="e.g. Court of the Civil Judge (Senior Division), Pune"),
+            Field("case_title", "Case title", required=False,
+                  placeholder="e.g. Ramesh Patil v. Sunil Joshi",
+                  help="Leave blank if the case has not been filed yet."),
+            Field("case_number", "Case number", required=False,
+                  placeholder="e.g. Special Civil Suit No. 412 of 2026"),
+        ),
+        after=(
+            "Sign in the space marked for the executant. Some courts require your "
+            "signature on every page — ask the advocate's clerk.",
+            "The advocate must sign the acceptance below your signature. A "
+            "vakalatnama without the advocate's acceptance is incomplete and will "
+            "be objected to at the filing counter.",
+            "Affix the court fee stamp and the Advocates' Welfare Fund stamp before "
+            "filing. The amounts are set by State rules and are small.",
+            "File it with the plaint, written statement, or at the first hearing "
+            "you attend. It goes on the record and stays there.",
+            "To change advocates later you file a fresh vakalatnama with a no "
+            "objection from the previous advocate, or seek the court's leave.",
+        ),
+        related=("court_procedure", "legal_aid"),
+    ),
+    "affidavit": Template(
+        id="affidavit",
+        title="General affidavit",
+        description=(
+            "A sworn statement of facts within your own knowledge. Required to "
+            "support most applications, and relied on as evidence."
+        ),
+        category="Court paperwork",
+        act="Code of Civil Procedure, 1908",
+        section="Order XIX read with Section 139",
+        fee="Stamp paper of ₹10 to ₹100, plus ₹50 to ₹200 for notarisation.",
+        fields=(
+            Field("deponent_name", "Your full name"),
+            Field("deponent_relation", "Son of / daughter of / wife of",
+                  placeholder="e.g. son of Shri Ramesh Kumar"),
+            Field("deponent_age", "Your age", kind="number", placeholder="e.g. 34"),
+            Field("deponent_occupation", "Your occupation", required=False,
+                  placeholder="e.g. Schoolteacher"),
+            Field("deponent_address", "Your full address", kind="textarea"),
+            Field("purpose", "What this affidavit is for",
+                  placeholder="e.g. In support of the application for condonation of delay",
+                  help="One line. If it is for a case, name the case below as well."),
+            Field("court_name", "Court or authority", required=False,
+                  placeholder="e.g. Court of the Civil Judge (Junior Division), Nashik"),
+            Field("case_number", "Case number", required=False),
+            Field("statements", "What you are swearing to", kind="textarea",
+                  help="One fact per line — they are numbered automatically. State only "
+                       "what you know yourself. Anything you were told by someone else "
+                       "must say so and name them, or the affidavit is open to attack."),
+            Field("true_from", "Which paragraphs are true to your own knowledge",
+                  required=False, placeholder="e.g. 1 to 4",
+                  help="The rest are treated as true to your information and belief. "
+                       "Getting this split right is what makes the verification honest."),
+            Field("place", "Place where you will swear it", placeholder="e.g. Nashik"),
+        ),
+        after=(
+            "Print on stamp paper bought in your own name. An affidavit on paper "
+            "issued to your advocate or to a third party is routinely objected to.",
+            "Do not sign it in advance. You sign in front of the Notary or Oath "
+            "Commissioner, who then attests it — that is what makes it an affidavit "
+            "rather than a letter.",
+            "Carry photo identification. The Notary has to verify who you are.",
+            "A false statement in an affidavit is punishable as perjury under "
+            "Sections 229 and 230 of the Bharatiya Nyaya Sanhita, 2023. Read every "
+            "line before you swear to it.",
+        ),
+        related=("court_procedure",),
+    ),
+    "case_intake": Template(
+        id="case_intake",
+        title="Case summary for your lawyer",
+        description=(
+            "Not a court document. A structured account of your problem to hand to "
+            "an advocate or a legal aid clinic, so the first meeting is spent on "
+            "advice rather than on assembling the facts."
+        ),
+        category="Court paperwork",
+        act="—",
+        section="—",
+        fee="None.",
+        fields=_APPLICANT + (
+            Field("problem_summary", "What has happened, in one or two sentences"),
+            Field("other_party", "Who the dispute is with"),
+            Field("other_party_address", "Their address, if you know it",
+                  kind="textarea", required=False),
+            Field("incident_date", "When it started", kind="date",
+                  help="This decides your limitation period, so be as exact as you can. "
+                       "If you are unsure, give the month."),
+            Field("chronology", "What happened, in order", kind="textarea",
+                  help="One event per line, each with a date — they are numbered "
+                       "automatically. Facts only. An advocate can work with a plain "
+                       "account far better than with an argument."),
+            Field("amount_involved", "Amount involved (₹)", kind="number", required=False),
+            Field("documents_held", "Documents you already have", kind="textarea",
+                  required=False,
+                  help="One per line. Agreements, receipts, messages, medical papers, "
+                       "police complaints, notices — anything on paper or on your phone."),
+            Field("steps_taken", "What you have already done", kind="textarea",
+                  required=False,
+                  help="Complaints made, notices sent, cases filed, and what came of them."),
+            Field("outcome_sought", "What you want to happen", kind="textarea",
+                  help="Money back, possession, a stop to something, a divorce, custody, "
+                       "or an apology. Be concrete — the remedy shapes the case."),
+        ),
+        after=(
+            "Take this to your first meeting along with the documents listed in it. "
+            "An advocate who can read the facts in five minutes gives better advice "
+            "in the remaining fifty-five.",
+            "Check the deadline before you go — the Deadline tool works it out from "
+            "the date you entered above, and it is the first thing an advocate will ask.",
+            "If you cannot afford a lawyer, take this to the District Legal Services "
+            "Authority in your district court, or call 15100. Representation is free "
+            "for women, children, Scheduled Caste and Scheduled Tribe applicants, "
+            "industrial workmen, and anyone earning under the State's income limit.",
+            "Keep a copy. If you consult more than one advocate you will not have to "
+            "reconstruct any of this again.",
+        ),
+        related=("legal_aid", "limitation_periods"),
+    ),
 }
 
 
@@ -664,6 +810,220 @@ Yours faithfully,
 """
 
 
+def _today_ordinal() -> str:
+    """"9th day of August 2026" — how a court document dates itself."""
+    day = date.today().day
+    suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    return f"{day}{suffix} day of {date.today().strftime('%B %Y')}"
+
+
+def _cause_title(d: dict) -> str:
+    """The heading block every court document opens with."""
+    court = _v(d, "court_name", "COURT OF ____________").upper()
+    # People type "Court of the Civil Judge…"; the convention is "IN THE COURT
+    # OF…". Add the prefix unless they already did.
+    if not court.startswith(("IN THE", "BEFORE")):
+        court = f"IN THE {court}"
+    lines = [court]
+    if d.get("case_number"):
+        lines.append(f"\n{d['case_number']}")
+    if d.get("case_title"):
+        lines.append(f"\nIn the matter of:\n{d['case_title']}")
+    return "\n".join(lines)
+
+
+def _render_vakalatnama(d: dict, t: Template) -> str:
+    role = _v(d, "party_role", "____________")
+    advocate = _v(d, "advocate_name")
+    enrolment = (
+        f"\nEnrolment No.: {d['advocate_enrolment']}"
+        if d.get("advocate_enrolment") else ""
+    )
+    office = f"\n{d['advocate_address']}" if d.get("advocate_address") else ""
+
+    return f"""{_cause_title(d)}
+
+
+V A K A L A T N A M A
+
+
+I, {_v(d, 'applicant_name')}, residing at
+
+{_v(d, 'applicant_address')}
+
+the {role} in the above matter, do hereby appoint and retain
+
+{advocate}{enrolment}{office}
+
+Advocate, to appear, plead and act for me in the above matter, and to conduct
+and prosecute or defend the same and all proceedings that may be taken in
+respect thereof, and I authorise the said Advocate:
+
+   1. To appear before this Hon'ble Court and before any other court or
+      authority to which the matter may be transferred.
+   2. To sign, verify, file and present all pleadings, applications,
+      affidavits, appeals, petitions and other documents.
+   3. To receive and give notices, summons and processes.
+   4. To withdraw or compromise the matter, or refer it to arbitration or
+      mediation, only after obtaining my specific instructions in writing.
+   5. To receive any money or property decreed or ordered in my favour, and to
+      grant a valid receipt for the same.
+   6. To engage or appoint another Advocate to assist, on the same terms.
+
+I agree to ratify all acts lawfully done by the said Advocate by virtue of
+this authority, and I undertake not to hold the Advocate responsible for any
+consequence of my own absence from any hearing.
+
+I further agree that the Advocate shall be at liberty to withdraw from the
+matter if the agreed fee is not paid.
+
+Dated this the {_today_ordinal()},
+at {_v(d, 'applicant_address').splitlines()[-1] if d.get('applicant_address') else '____________'}.
+
+
+
+____________________________
+{_v(d, 'applicant_name')}
+({role} — Executant)
+
+
+ACCEPTED
+
+I accept the above appointment on the terms stated.
+
+
+
+____________________________
+{advocate}, Advocate{enrolment}
+
+
+                                        [ Affix court fee stamp here ]
+                                        [ Affix Advocates' Welfare Fund stamp ]
+"""
+
+
+def _render_affidavit(d: dict, t: Template) -> str:
+    heading = ""
+    if d.get("court_name") or d.get("case_number"):
+        heading = f"{_cause_title(d)}\n\n\n"
+
+    age = _v(d, "deponent_age", "____")
+    occupation = (
+        f", {d['deponent_occupation']} by occupation"
+        if d.get("deponent_occupation") else ""
+    )
+    true_from = _v(d, "true_from", "____")
+
+    # The purpose clause is the last numbered paragraph, so it has to follow on
+    # from however many statements the deponent entered.
+    sworn = [ln for ln in str(d.get("statements", "") or "").splitlines() if ln.strip()]
+    last_para = len(sworn) + 1 if sworn else 2
+
+    return f"""{heading}A F F I D A V I T
+
+
+I, {_v(d, 'deponent_name')}, {_v(d, 'deponent_relation')}, aged about {age}
+years{occupation}, residing at
+
+{_v(d, 'deponent_address')}
+
+do hereby solemnly affirm and state on oath as follows:
+
+{_numbered(d.get('statements', ''))}
+   {last_para}. This affidavit is made in support of {_v(d, 'purpose')}, and for no
+      other purpose.
+
+
+V E R I F I C A T I O N
+
+I, the deponent above named, do hereby verify that the contents of paragraphs
+{true_from} of this affidavit are true to my own knowledge, and that the
+remaining paragraphs are true to my information and belief, and that I have
+not suppressed any material fact.
+
+Verified at {_v(d, 'place')} on this the {_today_ordinal()}.
+
+
+
+____________________________
+{_v(d, 'deponent_name')}
+DEPONENT
+
+
+                    Solemnly affirmed before me on the date and at the place
+                    above named, the deponent being identified to my
+                    satisfaction.
+
+
+
+                    ____________________________
+                    Notary Public / Oath Commissioner
+                    [ Seal ]
+"""
+
+
+def _render_case_intake(d: dict, t: Template) -> str:
+    amount = (
+        f"\nAmount involved:      ₹{_money(d, 'amount_involved')}"
+        if d.get("amount_involved") else ""
+    )
+
+    def _block(label: str, key: str) -> str:
+        raw = str(d.get(key, "") or "").strip()
+        if not raw:
+            return ""
+        lines = "\n".join(f"   • {ln.strip()}" for ln in raw.splitlines() if ln.strip())
+        return f"\n\n{label}\n{'-' * len(label)}\n{lines}"
+
+    return f"""CASE SUMMARY
+Prepared {date.today().strftime('%d %B %Y')}
+
+This is a client's own account of their problem, prepared before taking
+advice. It is not a pleading and nothing in it has been settled by counsel.
+
+
+WHO
+---
+Name:                 {_v(d, 'applicant_name')}
+Address:              {_v(d, 'applicant_address')}
+Phone:                {_v(d, 'applicant_phone', 'not given')}
+Email:                {_v(d, 'applicant_email', 'not given')}
+
+Dispute is with:      {_v(d, 'other_party')}
+Their address:        {_v(d, 'other_party_address', 'not known')}
+
+
+THE PROBLEM
+-----------
+{_v(d, 'problem_summary')}
+
+Date it started:      {_fmt_date(str(d.get('incident_date', '')))}{amount}
+
+Note on limitation: the date above is what the limitation period runs from.
+It should be checked against the Limitation Act, 1963 before anything is
+filed — an otherwise good claim is worth nothing once the period has run.
+
+WHAT HAPPENED, IN ORDER
+-----------------------
+{_numbered(d.get('chronology', ''))}{_block('DOCUMENTS THE CLIENT HOLDS', 'documents_held')}{_block('STEPS ALREADY TAKEN', 'steps_taken')}
+
+
+WHAT THE CLIENT WANTS
+---------------------
+{_v(d, 'outcome_sought')}
+
+
+FOR THE ADVOCATE
+----------------
+   • Limitation — confirm the period and whether it has run.
+   • Forum and jurisdiction — territorial and pecuniary.
+   • Whether a statutory notice is required before filing.
+   • Court fee payable, and whether the client is exempt.
+   • Whether the client qualifies for free legal aid under Section 12 of the
+     Legal Services Authorities Act, 1987.
+"""
+
+
 _RENDERERS = {
     "rti_application": _render_rti_application,
     "rti_first_appeal": _render_rti_first_appeal,
@@ -671,6 +1031,9 @@ _RENDERERS = {
     "cheque_notice": _render_cheque_notice,
     "fir_escalation": _render_fir_escalation,
     "legal_notice": _render_legal_notice,
+    "vakalatnama": _render_vakalatnama,
+    "affidavit": _render_affidavit,
+    "case_intake": _render_case_intake,
 }
 
 

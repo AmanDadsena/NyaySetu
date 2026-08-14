@@ -14,7 +14,17 @@ from datetime import date
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.tools import citations, documents, fees, forum, holidays, limitation, timeline
+from app.tools import (
+    citations,
+    documents,
+    fees,
+    forum,
+    holidays,
+    limitation,
+    maintenance,
+    stamp_duty,
+    timeline,
+)
 
 router = APIRouter(prefix="/api/tools", tags=["tools"])
 
@@ -155,6 +165,70 @@ async def extract_citations(request: CitationRequest) -> dict:
         "statutes": [c.__dict__ for c in result.statutes],
         "unresolved": result.unresolved,
     }
+
+
+# ── Stamp duty ──────────────────────────────────────────────────────────
+class StampDutyRequest(BaseModel):
+    instrument: str
+    value: float = 0.0
+    circle_rate: float = Field(
+        default=0.0,
+        description="Circle rate / ready reckoner value. Duty runs on whichever "
+                    "of this and the consideration is higher.",
+    )
+    state: str | None = None
+    buyer: str = Field(default="man", description="man | woman | joint")
+
+
+@router.get("/stamp-duty")
+async def list_instruments() -> dict:
+    return stamp_duty.catalogue()
+
+
+@router.post("/stamp-duty")
+async def compute_stamp_duty(request: StampDutyRequest) -> dict:
+    try:
+        result = stamp_duty.calculate(
+            request.instrument,
+            request.value,
+            request.circle_rate,
+            request.state,
+            request.buyer,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return result.__dict__
+
+
+# ── Maintenance ─────────────────────────────────────────────────────────
+class MaintenanceRequest(BaseModel):
+    payer_income: float = Field(ge=0, description="Respondent's net monthly income")
+    claimant_income: float = Field(default=0.0, ge=0)
+    spouse: bool = True
+    children: int = Field(default=0, ge=0, le=20)
+    parents: int = Field(default=0, ge=0, le=2)
+
+
+@router.get("/maintenance")
+async def maintenance_reference() -> dict:
+    return maintenance.catalogue()
+
+
+@router.post("/maintenance")
+async def estimate_maintenance(request: MaintenanceRequest) -> dict:
+    if not (request.spouse or request.children or request.parents):
+        raise HTTPException(
+            status_code=400,
+            detail="Select at least one person the maintenance is claimed for.",
+        )
+    result = maintenance.calculate(
+        request.payer_income,
+        request.claimant_income,
+        request.spouse,
+        request.children,
+        request.parents,
+    )
+    return result.__dict__
 
 
 # ── Working days ────────────────────────────────────────────────────────

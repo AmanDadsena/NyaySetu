@@ -59,7 +59,9 @@ CORPUS: list[Passage] = [
             "or child regardless of income."
         ),
         source_url="https://nalsa.gov.in",
-        topics=("legal aid", "nalsa", "free lawyer", "poverty", "access to justice"),
+        topics=("legal aid", "nalsa", "free lawyer", "poverty", "access to justice",
+                "cannot afford a lawyer", "free legal help", "no money for a lawyer"),
+        also_known_as=("afford a lawyer", "free legal advice"),
     ),
     Passage(
         id="legal_aid_how_to_apply",
@@ -615,7 +617,9 @@ CORPUS: list[Passage] = [
             "remove such content expeditiously once notified."
         ),
         source_url="https://cybercrime.gov.in",
-        topics=("revenge porn", "obscene", "privacy", "intimate images", "takedown", "women"),
+        topics=("revenge porn", "obscene", "privacy", "intimate images", "takedown", "women",
+                "private photos", "posted my photos online", "nude photos", "leaked pictures"),
+        also_known_as=("someone posted my private photos", "photos shared without consent"),
     ),
 
     # ── Family ──────────────────────────────────────────────────────────
@@ -669,8 +673,9 @@ CORPUS: list[Passage] = [
             "not remarried is included."
         ),
         source_url=INDIA_CODE,
-        topics=("maintenance", "alimony", "wife", "parents", "children", "125 crpc"),
-        also_known_as=("Section 125 CrPC", "125 CrPC"),
+        topics=("maintenance", "alimony", "wife", "parents", "children", "125 crpc",
+                "maintenance from husband", "claim maintenance", "monthly support"),
+        also_known_as=("Section 125 CrPC", "125 CrPC", "guzara bhatta", "maintenance from my husband"),
     ),
     Passage(
         id="domestic_violence",
@@ -929,12 +934,13 @@ CORPUS: list[Passage] = [
     ),
 ]
 
-# Second volume, split out only to keep each file readable. Imported at the
-# bottom to avoid a circular import: corpus_extra needs Passage and INDIA_CODE
-# from here.
+# Further volumes, split out only to keep each file readable. Imported at the
+# bottom to avoid a circular import: they need Passage and INDIA_CODE from here.
 from .corpus_extra import EXTRA_CORPUS  # noqa: E402
+from .corpus_civic import CIVIC_CORPUS  # noqa: E402
 
 CORPUS.extend(EXTRA_CORPUS)
+CORPUS.extend(CIVIC_CORPUS)
 
 # Ids are used to pin retrieval from the UI, so a duplicate would silently
 # shadow a passage. Fail loudly at import instead.

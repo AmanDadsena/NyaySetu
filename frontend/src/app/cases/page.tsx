@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Briefcase, Clock, Plus, Shield } from "lucide-react";
+import { Briefcase, Clock, Lock, Plus, Shield } from "lucide-react";
+import { useAuthGate } from "@/lib/auth/AuthGate";
 
 interface Case {
   id: number;
@@ -13,6 +14,7 @@ interface Case {
 }
 
 export default function CasesPage() {
+  const { requireAuth, signedIn } = useAuthGate();
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,6 +23,10 @@ export default function CasesPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
 
+  // The board is per-user — a client sees their own cases, a lawyer sees the
+  // open ones — so there is nothing to fetch until someone is signed in.
+  // Keying on `signedIn` also means the list appears by itself the moment the
+  // sign-in prompt is satisfied, without a reload.
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -32,8 +38,9 @@ export default function CasesPage() {
         console.error("Invalid token");
       }
     }
-    fetchCases();
-  }, []);
+    if (signedIn) fetchCases();
+    else setLoading(false);
+  }, [signedIn]);
 
   const fetchCases = () => {
     const token = localStorage.getItem("token");
@@ -76,7 +83,12 @@ export default function CasesPage() {
           </div>
           {userRole !== 'lawyer' && (
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={() =>
+                requireAuth(
+                  () => setIsModalOpen(true),
+                  "Sign in to post your case for lawyers to review.",
+                )
+              }
               className="flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-slate-800 transition-colors shrink-0 shadow-md"
             >
               <Plus className="w-4 h-4" /> Post a Case
@@ -84,7 +96,16 @@ export default function CasesPage() {
           )}
         </div>
 
-        {loading ? (
+        {!signedIn ? (
+          <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+            <Lock className="w-10 h-10 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-1">Your case board is private</h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              Cases are visible only to the client who posted them and to the lawyers
+              reviewing them. Sign in to see yours, or post a case to get started.
+            </p>
+          </div>
+        ) : loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map(i => (
               <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm animate-pulse h-32" />

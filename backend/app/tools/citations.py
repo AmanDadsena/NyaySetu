@@ -206,6 +206,9 @@ def extract(text: str) -> ExtractionResult:
 
     # ── Cases ──
     seen_cases: dict[str, Citation] = {}
+    #: First span and pattern kind per case, so a name and the citation that
+    #: follows it can be recognised afterwards as one authority.
+    spans: dict[str, tuple[int, int, str]] = {}
     for pattern, kind in (
         (_SCC_RE, "reported"),
         (_AIR_RE, "reported"),
@@ -229,6 +232,42 @@ def extract(text: str) -> ExtractionResult:
                 context=context,
                 relied_on=_relied(context),
             )
+            spans[key] = (match.start(), match.end(), kind)
+
+    # A judgment cites a case once, as "Name v. Name, (2017) 14 SCC 200" — but
+    # the name pattern and the reported-citation pattern each match a part of
+    # it, so it arrives here as two entries. Join them where the citation
+    # directly follows the name, which is the only place it can sit and still
+    # belong to it. Anything further away is left alone: two authorities
+    # reported as one is a worse error than one reported as two.
+    merged: set[str] = set()
+    for name_key, (_, name_end, name_kind) in spans.items():
+        if name_kind != "name":
+            continue
+        for cite_key, (cite_start, _, cite_kind) in spans.items():
+            if cite_kind == "name" or cite_key in merged:
+                continue
+            if not 0 <= cite_start - name_end <= 3:
+                continue
+            gap = text[name_end:cite_start]
+            if "." in gap:
+                continue
+            # The sentence-ending full stop is usually captured *inside* the
+            # name match ("…Ram v. Shyam."), so looking only at the gap misses
+            # it and the next sentence's citation gets attached to this case.
+            # A full stop followed by nothing but space ends the sentence; one
+            # followed by a comma is an abbreviation, as in "State of U.P.,".
+            bridge = text[max(name_end - 1, 0):cite_start]
+            if not re.fullmatch(r"\.\s*", bridge):
+                name = seen_cases[name_key]
+                citation = seen_cases[cite_key]
+                name.text = f"{name.text}, {citation.text}"
+                name.count = max(name.count, citation.count)
+                name.relied_on = name.relied_on or citation.relied_on
+                merged.add(cite_key)
+                break
+    for key in merged:
+        del seen_cases[key]
 
     # ── Statutes ──
     seen_statutes: dict[str, Citation] = {}
