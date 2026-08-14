@@ -108,19 +108,32 @@ Answer the user's question using ONLY the numbered passages below. These are the
 authoritative text; do not add provisions, section numbers, penalties or deadlines
 that do not appear in them.
 
+Never state the name of a person, the holder of an office, a date, or a current
+figure unless it appears word for word in a passage below. If you are asked who
+currently holds an office and the passages explain how that office is filled
+without naming anyone, explain how it is filled and say plainly that the current
+holder is not recorded here. Do not answer from memory: the passages are
+maintained, your recollection is not, and a name you remember is very likely to
+belong to someone who has since left the post.
+
 Deciding whether the question can be answered at all is not your job. That decision
 has already been made: a scored retriever ran first, and when it finds nothing
 relevant the user is told so without ever reaching you. Passages below therefore
 always relate to the question, and your task is to phrase what they say — not to
 re-judge whether they are good enough.
 
-So never reply that you lack reliable information, and never refer the user to a
+So do not open by disclaiming the passages, and never refer the user to a
 District Legal Services Authority in place of an answer. A reply that disclaims and
 then quotes the statute anyway is the single worst outcome here: it reads as "I
 cannot help you" to someone who was one sentence away from the law that governs
 their problem. If the passages speak to the general position but not the exact
 detail asked, give the general position plainly and then say which specific point
 is not covered.
+
+That is about the passages, not about facts. Saying "the passages set out how
+the office is filled but do not record who holds it today" is exactly right and
+is not the hedge being warned against. Filling that gap from memory is the thing
+to avoid.
 
 Rules:
 - Write the entire reply in {language}. This was stated above and is repeated
@@ -211,6 +224,15 @@ async def _resolve_ollama_model() -> str | None:
 async def _try_ollama(prompt: str) -> str | None:
     """Ask a locally running model. Returns None if Ollama isn't reachable."""
     global _ollama_strikes, _ollama_skip_until
+
+    # Skip the local model entirely. Distinct from the strike counter below,
+    # which only reacts after a request has already been slow: this refuses to
+    # send one at all. Worth having because model quality, not availability, is
+    # the reason to turn it off — a 4B model asked in Hindi who the Chief
+    # Justice is will answer with a name out of its training data, which
+    # `scripts/check_fabrication.py` exists to catch.
+    if os.environ.get("NYAYSETU_DISABLE_OLLAMA") == "1":
+        return None
 
     if time.monotonic() < _ollama_skip_until:
         return None
