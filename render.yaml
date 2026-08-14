@@ -16,3 +16,10 @@ services:
         value: "https://your-vercel-frontend-domain.vercel.app" # You will update this in Render dashboard
       - key: GEMINI_API_KEY
         sync: false # You must set this manually in the Render dashboard
+      # No Ollama runs here, so this mainly saves a connection attempt per
+      # request — but it is set explicitly because the reason is quality, not
+      # availability. A 4B local model asked in Hindi who the Chief Justice is
+      # answers with a name from its training data that the corpus never
+      # contains. See scripts/check_fabrication.py.
+      - key: NYAYSETU_DISABLE_OLLAMA
+        value: "1"
