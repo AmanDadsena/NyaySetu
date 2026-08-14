@@ -285,6 +285,9 @@ CASES: list[tuple[str, str]] = [
     ("How do I become a judge?", "judges_appointment_and_service"),
     ("Which court do I file a small civil claim in?", "court_hierarchy"),
     ("What is the difference between a High Court and a Sessions Court?", "court_hierarchy"),
+    # The passage explains how the office is filled without naming the holder;
+    # see the note above VOLATILE facts for why that still counts as a hit.
+    ("Who is the current Chief Justice of India?", "judges_appointment_and_service"),
 ]
 
 #: Questions that are not about Indian law. The retriever should return nothing
@@ -341,37 +344,25 @@ NEAR_LAW_NEGATIVES: list[tuple[str, str]] = [
     ("kn", "ಪೊಲೀಸ್ ನೇಮಕಾತಿ ಪರೀಕ್ಷೆ ಯಾವಾಗ"),
 ]
 
-#: Questions about a fact that goes stale, where the corpus explains the
-#: *mechanism* but deliberately holds no current answer.
+#: A note on questions whose answer goes stale, since the resolution is not
+#: obvious from the cases themselves.
 #:
-#: `judges_appointment_and_service` sets out how the Chief Justice is appointed,
-#: the qualifications, the salary and the retirement age. It does not name
-#: whoever currently holds the office, and it must not: a corpus with no update
-#: pipeline that asserts a name is confidently wrong within months.
+#: "Who is the current Chief Justice of India" is a case expecting
+#: `judges_appointment_and_service`, and that passage deliberately does not name
+#: whoever holds the office. It cannot: a corpus with no update pipeline that
+#: asserts a name is confidently wrong within months.
 #:
-#: So these retrieve a genuinely relevant passage — at confidence 1.00 in Hindi
-#: — that cannot answer the question as asked. Whether that counts as success is
-#: a product decision rather than a retrieval one, which is why they are held
-#: apart from both the cases and the negatives rather than quietly filed as
-#: either.
+#: Retrieving it is scored as a hit anyway. The alternative was to treat it as a
+#: failure on the reasoning that confidence 1.00 on an unanswerable question is
+#: misleading — but what the reply actually says settles it: "The current Chief
+#: Justice of India is not explicitly stated in the provided passages. However,
+#: the passages state that the Chief Justice draws ₹2,80,000 a month…". The
+#: reader learns how the office is filled and is told plainly that the name is
+#: not held here, which beats a refusal.
 #:
-#: TODO(product): decide how this class should behave. Two defensible answers:
-#:
-#:   * Treat as a hit. Returning the appointment passage lets the reply say how
-#:     the office is filled and that the current holder is not held here, which
-#:     is more use than a refusal. Move these into `CASES` expecting
-#:     `judges_appointment_and_service`.
-#:   * Treat as a refusal. A confidence of 1.00 on a question the corpus cannot
-#:     answer is the misleading part, and a reader who sees a confident passage
-#:     about the collegium may not notice the name never appears. Keep them
-#:     failing here until retrieval can distinguish "explains the office" from
-#:     "names the holder".
-VOLATILE_FACT_QUESTIONS: list[tuple[str, str]] = [
-    ("en", "Who is the current Chief Justice of India?"),
-    ("hi", "भारत के मुख्य न्यायाधीश कौन हैं"),
-    ("ta", "இந்தியத் தலைமை நீதிபதி யார்"),
-    ("bn", "ভারতের প্রধান বিচারপতি কে"),
-]
+#: The general rule this sets: a passage that explains the mechanism is a
+#: correct retrieval for a question about the current instance of it. The
+#: honesty belongs in the answer, not in refusing to look.
 
 #: Off-topic questions in the seven non-English UI languages.
 #:
@@ -527,6 +518,15 @@ _add_multilingual(
     te="న్యాయమూర్తి జీతం ఎంత",
     kn="ನ್ಯಾಯಾಧೀಶರ ಸಂಬಳ ಎಷ್ಟು",
 )
+# Asking who currently holds the office, in three scripts. Same expectation:
+# the passage that explains the appointment, with the reply saying the name is
+# not held here.
+_add_multilingual(
+    {"judges_appointment_and_service"},
+    hi="भारत के मुख्य न्यायाधीश कौन हैं",
+    ta="இந்தியத் தலைமை நீதிபதி யார்",
+    bn="ভারতের প্রধান বিচারপতি কে",
+)
 # A second Hindi phrasing, asking about colleges rather than qualifying. Kept
 # because "which is best" is how people actually ask, and the passage answers it
 # by saying Bar Council approval is the thing that matters.
@@ -577,11 +577,6 @@ def run(verbose: bool = True) -> dict[str, float]:
     near_law_answered = [
         (lang, q, results[0])
         for lang, q in NEAR_LAW_NEGATIVES
-        if (results := retriever.search(q, top_k=1))
-    ]
-    volatile_answered = [
-        (lang, q, results[0])
-        for lang, q in VOLATILE_FACT_QUESTIONS
         if (results := retriever.search(q, top_k=1))
     ]
 
@@ -670,13 +665,6 @@ def run(verbose: bool = True) -> dict[str, float]:
             print(f"    [{lang}] {question[:44]:46} -> {hit.passage.id} "
                   f"(conf {hit.confidence:.2f})")
 
-        # Reported without a verdict — see VOLATILE_FACT_QUESTIONS for why the
-        # right behaviour here has not been decided yet.
-        print(f"\n  Volatile facts — mechanism held, current answer not: "
-              f"{len(volatile_answered)}/{len(VOLATILE_FACT_QUESTIONS)} retrieved")
-        for lang, question, hit in volatile_answered:
-            print(f"    [{lang}] {question[:44]:46} -> {hit.passage.id} "
-                  f"(conf {hit.confidence:.2f})")
 
         if ml_misses:
             print(f"\n  {len(ml_misses)} missed:")
