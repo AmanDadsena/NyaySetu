@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nyaysetu — frontend
 
-## Getting Started
-
-First, run the development server:
+Next.js 16 (App Router), React 19, Tailwind v4. See the [root README](../README.md)
+for what the project is and how the backend answers.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Expects the API at `http://localhost:8000`, or wherever `NEXT_PUBLIC_API_URL`
+points.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Worth knowing before changing things
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**This is not the Next.js you may remember.** Version 16 has breaking changes
+against older conventions; read the relevant guide under
+`node_modules/next/dist/docs/` before reaching for a pattern from memory. See
+[AGENTS.md](AGENTS.md).
 
-## Learn More
+**Language is resolved server-side** from a cookie, so a Tamil visitor never
+sees a frame of English. Translations live in `src/lib/i18n/translations.ts` —
+100 keys, complete across all eight locales. `en` is the source of truth and
+defines the key set; every other locale is a `Partial` of it, so a missing key
+falls back to English at lookup rather than breaking the build.
 
-To learn more about Next.js, take a look at the following resources:
+**The toolkit works offline.** `src/lib/toolkit/offline.ts` holds the lookup
+tables fetched once and cached, with the deadline arithmetic repeated in the
+browser. It is deliberate duplication of the Python, and
+`backend/scripts/check_offline_parity.py` fails if the two ever disagree — run
+it after touching either side.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Sign-in is attached to actions, not routes.** Every page stays browsable;
+pressing a button that does work redirects to `/login?next=…` and the sign-in
+page says what it was for. See `src/lib/auth/AuthGate.tsx`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Checks
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx tsc --noEmit
+npm run build
+```
