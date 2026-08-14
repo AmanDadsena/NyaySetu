@@ -103,22 +103,32 @@ STRONG_BM25 = float(os.environ.get("NYAYSETU_STRONG_BM25", "16.0"))
 #: Swept against off-topic questions in all eight languages, because a semantic
 #: gate guards a multilingual embedding space and probing it only in English
 #: measures the wrong thing — English negatives are the ones the lexical guards
-#: already catch. Dense-only cross-lingual coverage against false positives, out
-#: of 14 English and 10 non-English off-topic questions:
+#: already catch. Dense-only coverage against false positives, over 31 everyday
+#: off-topic questions and 21 that carry legal vocabulary without being legal
+#: questions (`NEAR_LAW_NEGATIVES`):
 #:
-#:     gate   answered   false positives
-#:     0.25     91.1%      3 en + 2 non-en
-#:     0.30     91.1%      1 en + 2 non-en
-#:     0.35     85.7%      none
-#:     0.45     58.9%      none      (previous value)
+#:     gate   answered   everyday    near-law
+#:     0.25     91.1%      8/31        21/21
+#:     0.30     91.1%      6/31        19/21
+#:     0.35     85.7%      0/31        18/21
+#:     0.45     58.9%      0/31        16/21     (previous value)
+#:     0.50     42.9%      0/31        14/21
 #:
-#: 0.35 buys 27 points of coverage for nothing measurable, and is where this
-#: sits. Note what the sweep also shows: the distributions **overlap**. The
-#: highest-scoring off-topic question ("ನಾಳೆ ಹವಾಮಾನ ಹೇಗಿರುತ್ತದೆ", tomorrow's
-#: weather) reaches 0.313, while a genuine question about unpaid salary in Tamil
-#: reaches only 0.237. No threshold separates those, so this is a trade-off
-#: rather than a boundary, and the margin above the worst negative is about
-#: 0.04. Widen `NEGATIVE_MULTILINGUAL` before trusting a lower value.
+#: Two things follow, and the second is the important one.
+#:
+#: 0.35 is the loosest setting that refuses every everyday off-topic question,
+#: and buys 27 points of dense-only coverage over 0.45 for no cost measurable
+#: on that set. That is why it sits here.
+#:
+#: But the near-law column shows this gate is not what stands between the corpus
+#: and a confidently wrong answer, and never was: 16 of 21 were already getting
+#: through at 0.45. Those questions contain real legal words, so BM25 matches
+#: them legitimately and the lexical route admits most of them regardless of
+#: this value. No threshold fixes it — "भारत के मुख्य न्यायाधीश कौन हैं" scores
+#: 0.487 while a genuine Tamil question about unpaid salary scores 0.237, so any
+#: gate strict enough to refuse the first refuses the second. Tightening this
+#: number in response to that column would cost real users coverage and buy
+#: almost nothing; see `NEAR_LAW_NEGATIVES` for where the fix actually lies.
 #:
 #: In the shipped configuration this changes nothing: with the lexicon on, every
 #: eval language already has lexical evidence and the metrics are identical at
