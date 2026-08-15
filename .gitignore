@@ -43,6 +43,11 @@ backend/data/feedback.jsonl
 /analyze.html
 /check_url*.py
 
-# Marketing copy and its output — kept locally, not part of the source tree
-Nyaysetu-LinkedIn-Post.md
-Nyaysetu-LinkedIn-Carousel.pdf
+# ── Marketing and promotional assets ─────────────────────────
+# Kept locally, never pushed. This repository is the product, not the
+# material used to talk about it, and a regenerated deck would otherwise
+# land in history as a fresh binary on every rebuild.
+Nyaysetu-LinkedIn-*
+Nyaysetu-Carousel-*
+*-carousel.pdf
+shots/
