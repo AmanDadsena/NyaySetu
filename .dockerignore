@@ -1,0 +1,38 @@
+# Keep the build context small and the image reproducible.
+#
+# Hugging Face and Render build from the git repo, where most of this is
+# already absent — but a local `docker build` uses the working directory, and
+# backend/venv alone is 1.2 GB. Without this, that gets uploaded to the daemon
+# before the first layer runs.
+
+# Virtual environments and caches
+backend/venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# The frontend is deployed separately (Vercel); the backend image never needs it
+frontend/
+
+# Local state that must never reach an image
+*.db
+*.sqlite
+*.sqlite3
+backend/.env
+backend/data/feedback.jsonl
+
+# Version control and editor noise
+.git/
+.gitignore
+.gitattributes
+.claude/
+.vscode/
+.idea/
+
+# Docs and scratch files that do not affect runtime
+*.md
+!README.md
+analyze.html
+check_url*.py
