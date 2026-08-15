@@ -48,6 +48,9 @@ backend/data/feedback.jsonl
 # material used to talk about it, and a regenerated deck would otherwise
 # land in history as a fresh binary on every rebuild.
 Nyaysetu-LinkedIn-*
+# One-off write-up for a pull request that is now merged; the README is
+# the maintained version of the same ground.
+PR_DESCRIPTION.md
 Nyaysetu-Carousel-*
 *-carousel.pdf
 shots/
