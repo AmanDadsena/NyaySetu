@@ -43,5 +43,6 @@ backend/data/feedback.jsonl
 /analyze.html
 /check_url*.py
 
-# Marketing copy — kept locally, not part of the source tree
+# Marketing copy and its output — kept locally, not part of the source tree
 Nyaysetu-LinkedIn-Post.md
+Nyaysetu-LinkedIn-Carousel.pdf
