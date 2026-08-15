@@ -5,6 +5,9 @@ services:
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # Render marks a deploy live once this responds. Without it a slow first
+    # boot can be read as a failed deploy.
+    healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.0
@@ -12,8 +15,22 @@ services:
         value: production
       - key: DEBUG
         value: false
+      # Required. app/config.py refuses to start under APP_ENV=production
+      # without it, rather than fall back to a key committed to a public repo.
+      # generateValue lets Render mint one, so it never passes through a human
+      # or a dashboard field. Changing it invalidates every existing session.
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # Unset means SQLite on a disk that does not survive a restart — which is
+      # how every account used to disappear. Paste a Neon or Supabase
+      # connection string in the dashboard; the postgres:// prefix and any
+      # ?sslmode= are rewritten for the async driver automatically.
+      - key: DATABASE_URL
+        sync: false
+      # Any *.vercel.app origin is already allowed by regex in app/main.py, so
+      # this is only needed for a custom domain.
       - key: CORS_ORIGINS
-        value: "https://your-vercel-frontend-domain.vercel.app" # You will update this in Render dashboard
+        sync: false
       - key: GEMINI_API_KEY
         sync: false # You must set this manually in the Render dashboard
       # No Ollama runs here, so this mainly saves a connection attempt per
