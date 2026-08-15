@@ -210,11 +210,34 @@ legal problems.
 
 ## Deployment
 
-`render.yaml` for the Render web service, `Dockerfile` for the Hugging Face
-Space. Two values must be set in the dashboard rather than the repo:
+Live:
 
-- `DATABASE_URL` — until it points at Postgres, a restart wipes every account.
-- `GEMINI_API_KEY` — optional; without it answers fall to the extractive path.
+| | |
+|---|---|
+| Frontend | https://nyay-setu-sigma.vercel.app |
+| Backend | https://amandadsena07-nyaysetu-backend.hf.space |
+| API docs | https://amandadsena07-nyaysetu-backend.hf.space/docs |
+
+Vercel builds the frontend from `main` on push. The Space is a **backend-only**
+tree — `Dockerfile`, `README.md` and `backend/`, nothing else. Pushing the whole
+repo there fails: the Space rejects the frontend's PNGs for not being in LFS,
+and a backend image has no use for them. To redeploy it:
+
+```bash
+git archive main Dockerfile README.md .dockerignore .gitattributes backend \
+  | tar -x -C /tmp/hfdeploy
+cd /tmp/hfdeploy && git init -b main && git add -A && git commit -m "Deploy"
+git remote add space https://huggingface.co/spaces/<user>/<space>
+git push space main --force
+```
+
+`render.yaml` is kept as an alternative host. It generates `JWT_SECRET_KEY`
+itself; only `DATABASE_URL` and the optional `GEMINI_API_KEY` need setting.
+
+**Set `DATABASE_URL` to a Postgres URL** (Neon and Supabase have free tiers that
+persist) on whichever host you use. Without it the app falls back to SQLite on
+an ephemeral disk and every account disappears on restart. Everything that does
+not need an account — the assistant, the whole toolkit — works regardless.
 
 ---
 
