@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from app.config import ACCESS_TOKEN_TTL_MINUTES, JWT_ALGORITHM, JWT_SECRET_KEY
 from app.db.database import get_db
 from app.db.models import User
+from app.middleware import get_current_user
 
 load_dotenv()
 
@@ -52,6 +53,19 @@ class UserCreate(BaseModel):
 
 class UserLogin(BaseModel):
     email: EmailStr
+    password: str
+
+
+class AccountDeletion(BaseModel):
+    """
+    Deleting an account asks for the password again on purpose.
+
+    A bearer token is enough to read and write, and it can be lifted from
+    localStorage by any script that gets onto the page. Erasing someone's legal
+    matters is not recoverable, so it takes something the token alone cannot
+    supply.
+    """
+
     password: str
 
 def create_access_token(data: dict):
@@ -118,3 +132,31 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
             "role": db_user.role
         }
     }
+
+
+@router.delete("/account")
+async def delete_account(
+    confirmation: AccountDeletion,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Delete the caller's own account and everything attached to it.
+
+    An app that holds someone's legal problems — who they are suing, what was
+    done to them at work, a domestic violence application — has to let them take
+    it back. There was no way to do that at all, which is a gap in a tool
+    handling this kind of material regardless of who asks for it.
+
+    Only ever the caller's own account: the id comes from the token, never from
+    the request body, so there is no id to tamper with. Cases, messages and
+    saved deadlines go with it through the relationships' cascade rather than
+    being deleted by hand here, so a new table attached to User is covered
+    without anyone remembering to update this.
+    """
+    if not pwd_context.verify(confirmation.password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Password is incorrect")
+
+    await db.delete(current_user)
+    await db.commit()
+    return {"message": "Account deleted", "deleted": True}
