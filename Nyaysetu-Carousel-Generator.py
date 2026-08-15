@@ -10,8 +10,46 @@ import os
 
 from reportlab.lib.colors import HexColor
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
+
+
+def _register_fonts():
+    """
+    Embed real TrueType fonts instead of relying on the PDF base-14 set.
+
+    reportlab's default Helvetica and Times are never embedded — the file just
+    names them and trusts whatever opens it to have something close. That is
+    fine on a desktop and not fine here: LinkedIn rasterises an uploaded
+    document on its own servers, so any substitution it makes silently changes
+    the line breaks a carousel was laid out around.
+
+    It also fixes the arrows. Helvetica has no glyph for "→", so reportlab was
+    falling back to the Symbol font mid-string, which is why /Symbol appeared in
+    a deck that never asked for it.
+
+    Falls back to the base-14 names if the system fonts are missing, so the
+    script still runs somewhere other than Windows.
+    """
+    candidates = {
+        "Body": [r"C:\Windows\Fonts\arial.ttf"],
+        "Body-Bold": [r"C:\Windows\Fonts\arialbd.ttf"],
+        "Display": [r"C:\Windows\Fonts\georgiab.ttf"],
+    }
+    resolved = {}
+    for name, paths in candidates.items():
+        for path in paths:
+            if os.path.exists(path):
+                pdfmetrics.registerFont(TTFont(name, path))
+                resolved[name] = name
+                break
+    return (
+        resolved.get("Body", "Helvetica"),
+        resolved.get("Body-Bold", "Helvetica-Bold"),
+        resolved.get("Display", "Times-Bold"),
+    )
 
 W, H = 1080, 1350
 MARGIN = 88
@@ -30,9 +68,7 @@ CREAM = HexColor("#FAF7F0")
 INK = HexColor("#0F172A")
 INK_SOFT = HexColor("#475569")
 
-BOLD = "Helvetica-Bold"
-REG = "Helvetica"
-SERIF = "Times-Bold"
+REG, BOLD, SERIF = _register_fonts()
 
 
 # ── primitives ──────────────────────────────────────────────────────────
@@ -182,7 +218,15 @@ def footer(c, n, dark=True):
 
 # ── slides ──────────────────────────────────────────────────────────────
 def build(path):
-    c = canvas.Canvas(path, pagesize=(W, H))
+    # initialFontName matters: reportlab writes a font-selection operator at the
+    # start of every page from this value, so leaving it at the default put a
+    # reference to unembedded Helvetica on all twelve pages of a deck that never
+    # otherwise used it.
+    c = canvas.Canvas(path, pagesize=(W, H), initialFontName=REG, initialFontSize=12)
+    c.setTitle("Nyaysetu — a legal assistant that answers from cited statute")
+    c.setAuthor("Aman Singh Dadsena")
+    c.setSubject("Retrieval-grounded legal information for India, in eight languages")
+    c.setCreator("Nyaysetu-Carousel-Generator.py")
 
     # 1 — hook
     dark_ground(c)
