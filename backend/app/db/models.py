@@ -1,3 +1,14 @@
+"""
+Database models.
+
+Every DateTime here is `timezone=True` on purpose. The defaults produce
+timezone-aware values via `datetime.now(timezone.utc)`, and a bare `DateTime`
+becomes TIMESTAMP WITHOUT TIME ZONE on Postgres, which asyncpg refuses to
+accept an aware datetime for. SQLite stores whatever it is given, so the
+mismatch is invisible locally and every write fails the moment DATABASE_URL
+points at Postgres — which is exactly how it was found.
+"""
+
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Date, Boolean, CheckConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -13,8 +24,8 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False) # "client" or "lawyer"
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Lawyer specific profile info
     specialties = Column(String(255), nullable=True) # comma separated
@@ -41,8 +52,8 @@ class Case(Base):
     title = Column(String(200), nullable=False, index=True)
     description = Column(Text, nullable=False)
     status = Column(String(20), default="open", nullable=False) # open, assigned, in_progress, closed
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     client_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     lawyer_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -62,7 +73,7 @@ class Message(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     
     sender_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     receiver_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -103,11 +114,11 @@ class SavedDeadline(Base):
     notes = Column(Text, nullable=True)
     completed = Column(Boolean, default=False, nullable=False)
     #: Set once a reminder has gone out, so a digest does not repeat itself.
-    last_notified_at = Column(DateTime, nullable=True)
+    last_notified_at = Column(DateTime(timezone=True), nullable=True)
 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
