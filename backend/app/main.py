@@ -15,12 +15,48 @@ from dotenv import load_dotenv
 load_dotenv() # Load variables from .env into os.environ
 
 from app.routers import analyze, health, auth, lawyers, cases, chat, bot, tools, deadlines
-from app.db.database import engine, Base
+from app.db.database import IS_POSTGRES, engine, Base
+
+
+async def _widen_timestamps(conn) -> None:
+    """
+    Convert any naive timestamp column to `timestamptz`.
+
+    `create_all` creates missing tables and never alters existing ones, so a
+    database first created against the earlier models keeps
+    TIMESTAMP WITHOUT TIME ZONE columns. asyncpg refuses to write a
+    timezone-aware datetime into one, which is every write this app makes: the
+    service answers health checks perfectly and returns 500 on registration.
+
+    There is no migration tool here, and adding one to fix a single column type
+    would be heavier than the problem. This asks the catalogue which columns are
+    still naive and alters only those, so it is idempotent and does nothing on a
+    database that was created correctly.
+    """
+    from sqlalchemy import text
+
+    naive = await conn.execute(
+        text(
+            "SELECT table_name, column_name FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND data_type = 'timestamp without time zone'"
+        )
+    )
+    columns = naive.fetchall()
+    for table, column in columns:
+        await conn.execute(
+            text(
+                f'ALTER TABLE "{table}" ALTER COLUMN "{column}" '
+                f'TYPE timestamptz USING "{column}" AT TIME ZONE \'UTC\''
+            )
+        )
+    if columns:
+        print(f"Migrated {len(columns)} timestamp columns to timestamptz.")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Create any missing tables on boot.
+    Create any missing tables on boot, and bring existing ones up to date.
 
     This deliberately does NOT drop existing tables. It used to, which meant
     every restart — including every idle-wake on a hosted platform — silently
@@ -32,6 +68,8 @@ async def lifespan(app: FastAPI):
             print("RESET_DB=1 — dropping all tables before recreating them.")
             await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+        if IS_POSTGRES:
+            await _widen_timestamps(conn)
         print("Database schema ready.")
     yield
 
