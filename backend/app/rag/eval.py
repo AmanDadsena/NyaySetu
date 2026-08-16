@@ -24,6 +24,7 @@ from __future__ import annotations
 import sys
 import unicodedata
 
+from ..console import use_utf8_output
 from .lexicon import LEXICON
 from .retriever import get_retriever
 
@@ -677,6 +678,11 @@ def run(verbose: bool = True) -> dict[str, float]:
 
 
 if __name__ == "__main__":
+    # Before the first print: the lexicon report below names offending terms in
+    # their own script, so the gate can fail on encoding before it has scored
+    # anything.
+    use_utf8_output()
+
     lexicon_problems = check_lexicon() + check_translations()
     if lexicon_problems:
         print(f"\n  {len(lexicon_problems)} malformed lexicon entries:")
