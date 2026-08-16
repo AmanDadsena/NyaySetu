@@ -62,6 +62,24 @@ export default function LawyersPage() {
           </div>
         </div>
 
+        {/* Said plainly and up front rather than in a footnote. Someone
+            choosing an advocate from this list needs to know the platform has
+            not checked anyone on it. */}
+        <div className="mb-8 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
+          <Scale className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+          <p className="text-sm leading-relaxed text-amber-900/90">
+            <strong className="font-semibold">These listings are not verified.</strong>{" "}
+            Anyone can register here as a lawyer, and Nyaysetu does not check Bar
+            Council enrolment. Confirm any advocate&rsquo;s credentials with the
+            relevant State Bar Council before relying on them. If cost is the
+            obstacle, free legal aid is a statutory right for most people —{" "}
+            <a href="tel:15100" className="font-semibold underline underline-offset-2">
+              call 15100
+            </a>
+            .
+          </p>
+        </div>
+
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map(i => (
@@ -81,8 +99,12 @@ export default function LawyersPage() {
                   <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center text-xl font-bold text-gray-600">
                     {lawyer.name.charAt(0)}
                   </div>
-                  <div className="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md text-xs font-medium">
-                    <Scale className="w-3 h-3" /> Verified
+                  {/* Was a green "Verified" badge. Nothing verifies these
+                      listings — anyone can register as a lawyer, and Bar
+                      Council enrolment is never checked — so the badge was
+                      manufacturing trust the platform had not earned. */}
+                  <div className="flex items-center gap-1 bg-gray-50 text-gray-500 px-2 py-1 rounded-md text-xs font-medium border border-gray-200">
+                    <Scale className="w-3 h-3" /> Self-listed
                   </div>
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-1">{lawyer.name}</h3>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { Send, Shield, Search, Loader2, Lock } from "lucide-react";
 import { useAuthGate } from "@/lib/auth/AuthGate";
 
@@ -237,9 +238,18 @@ export default function MessagesPage() {
                     </div>
                   </div>
                 </div>
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-100">
-                  <Shield className="w-3.5 h-3.5" /> End-to-end Encrypted
-                </div>
+                {/* This badge used to read "End-to-end Encrypted", which was
+                    false: message text is stored in the database as plain text
+                    (see backend/app/routers/chat.py) and the operator can read
+                    it. Claiming otherwise invited people to disclose things
+                    they would not have disclosed knowingly. It now states what
+                    is actually true and links to the detail. */}
+                <Link
+                  href="/privacy"
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200 hover:border-gray-300 hover:text-gray-800 transition-colors"
+                >
+                  <Shield className="w-3.5 h-3.5" /> How your messages are stored
+                </Link>
               </div>
 
               {/* Messages List */}
@@ -252,7 +262,7 @@ export default function MessagesPage() {
                 ) : messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-3">
                     <Shield className="w-12 h-12 opacity-20" />
-                    <p className="text-sm">This conversation is secure. Say hello!</p>
+                    <p className="text-sm">No messages yet. Say hello!</p>
                   </div>
                 ) : (
                   messages.map(msg => {
@@ -279,7 +289,7 @@ export default function MessagesPage() {
                     type="text"
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
-                    placeholder={targetUserId ? "Type a secure message..." : "Waiting for assignment..."}
+                    placeholder={targetUserId ? "Type a message..." : "Waiting for assignment..."}
                     disabled={!targetUserId}
                     className="flex-1 bg-gray-50 border border-transparent focus:border-gray-200 focus:bg-white rounded-full pl-6 pr-14 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all disabled:opacity-50"
                   />

@@ -124,7 +124,8 @@ export default function CasesPage() {
                 <p className="text-gray-600 mb-6 leading-relaxed line-clamp-2">{c.description}</p>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                   <div className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> Posted {new Date(c.created_at).toLocaleDateString()}</div>
-                  <div className="flex items-center gap-1.5"><Shield className="w-4 h-4" /> Verified Client #{c.client_id}</div>
+                  {/* "Verified Client" claimed a check that does not exist. */}
+                  <div className="flex items-center gap-1.5"><Shield className="w-4 h-4" /> Client #{c.client_id}</div>
                 </div>
               </div>
             ))}
