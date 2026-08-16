@@ -580,11 +580,40 @@ export default function ToolkitPage() {
   return (
     <div className="min-h-[calc(100vh-73px)] bg-gray-50/50 px-4 py-10 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-4xl">
-        <header className="mb-8 animate-fade-in-up">
+        <header className="animate-fade-in-up mb-8">
           <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
             {t("toolkit.title")}
           </h1>
           <p className="mt-2 max-w-2xl text-gray-600">{t("toolkit.subtitle")}</p>
+
+          {/* What this toolkit is, before someone picks a tab. The point that
+              earns trust is that none of it calls a model — so two people with
+              the same facts get the same deadline, every time. */}
+          <div
+            className="animate-fade-in-up mt-6 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 sm:flex-row sm:items-start"
+            style={{ animationDelay: "0.1s" }}
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
+              <Sparkles className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[15px] leading-relaxed text-gray-700">
+                <strong className="font-semibold text-slate-900">
+                  None of these tools call an AI model.
+                </strong>{" "}
+                They are lookup tables and calendar arithmetic, so the answers
+                are instant, identical every time, and each cites the provision
+                it relies on. The deadline calculator keeps working with no
+                network at all.
+              </p>
+              <p className="mt-3 text-sm text-gray-500">
+                Not sure where to start? <strong>Case plan</strong> takes one
+                situation and one date and produces the forum, the deadline, the
+                cost and the paperwork together — built from the other tools, so
+                it can never contradict them.
+              </p>
+            </div>
+          </div>
         </header>
 
         {/* Tabs */}

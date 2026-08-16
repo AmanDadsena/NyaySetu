@@ -131,6 +131,34 @@ export const en = {
   "auth.orContinue": "Or continue with",
   "auth.noAccount": "Don't have an account?",
   "auth.signUpNow": "Sign up now",
+
+  // ── Footer ──────────────────────────────────────────────────────────────
+  "footer.tagline":
+    "Legal information you can check, in the language you think in.",
+  "footer.product": "Product",
+  "footer.learn": "Learn",
+  "footer.legalCol": "Legal",
+  "footer.reference": "Reference",
+  "footer.howItWorks": "How it works",
+  "footer.privacy": "Privacy",
+  "footer.terms": "Terms of use",
+  "footer.disclaimer": "Disclaimer",
+  "footer.contact": "Contact",
+  "footer.constitution": "Constitution of India",
+  "footer.indiaCode": "India Code",
+  "footer.nalsa": "NALSA",
+  "footer.apiDocs": "API documentation",
+  // Free legal aid is a statutory right, not a favour. It gets the most
+  // prominent block in the footer for that reason.
+  "footer.aidTitle": "Free legal aid is your right",
+  "footer.aidBody":
+    "Under the Legal Services Authorities Act, 1987, free legal aid is a statutory entitlement for most people in India — including every woman, every child, and anyone below the income limit set by their State.",
+  "footer.aidCall": "Call 15100 — NALSA helpline",
+  "footer.notAdvice":
+    "Nyaysetu provides legal information, not legal advice. Every answer cites the provision it rests on, so you can check it against the source. For a decision that matters, consult an advocate.",
+  "footer.openSource": "Open source",
+  "footer.noAccount": "No account needed",
+  "footer.builtFor": "Built for India",
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -246,6 +274,31 @@ const hi: Dict = {
   "auth.orContinue": "या इसके साथ जारी रखें",
   "auth.noAccount": "खाता नहीं है?",
   "auth.signUpNow": "अभी साइन अप करें",
+
+  // ── Footer ──
+  // `footer.aidBody` and `footer.notAdvice` are deliberately left to fall back
+  // to English in every Indic locale. They describe a statutory entitlement and
+  // the limits of the advice given; a subtly wrong translation of either is
+  // worse than English text a reader can put through a translator themselves.
+  // They want a human translator, not this file.
+  "footer.tagline": "जिस भाषा में आप सोचते हैं, उसी भाषा में कानूनी जानकारी — जिसे आप जाँच सकते हैं।",
+  "footer.product": "सेवाएँ",
+  "footer.learn": "जानें",
+  "footer.legalCol": "कानूनी",
+  "footer.reference": "संदर्भ",
+  "footer.howItWorks": "यह कैसे काम करता है",
+  "footer.privacy": "गोपनीयता",
+  "footer.terms": "उपयोग की शर्तें",
+  "footer.disclaimer": "अस्वीकरण",
+  "footer.contact": "संपर्क",
+  "footer.constitution": "भारत का संविधान",
+  "footer.indiaCode": "इंडिया कोड",
+  "footer.apiDocs": "API दस्तावेज़",
+  "footer.aidTitle": "मुफ़्त कानूनी सहायता आपका अधिकार है",
+  "footer.aidCall": "15100 पर कॉल करें — नालसा हेल्पलाइन",
+  "footer.openSource": "ओपन सोर्स",
+  "footer.noAccount": "खाते की ज़रूरत नहीं",
+  "footer.builtFor": "भारत के लिए बनाया गया",
 };
 
 const mr: Dict = {
@@ -358,6 +411,26 @@ const mr: Dict = {
   "auth.orContinue": "किंवा यासह पुढे जा",
   "auth.noAccount": "खाते नाही?",
   "auth.signUpNow": "आता साइन अप करा",
+
+  // ── Footer ── (see the note in `hi` on the two untranslated legal strings)
+  "footer.tagline": "तुम्ही ज्या भाषेत विचार करता, त्याच भाषेत कायदेशीर माहिती — जी तुम्ही तपासू शकता.",
+  "footer.product": "सेवा",
+  "footer.learn": "जाणून घ्या",
+  "footer.legalCol": "कायदेशीर",
+  "footer.reference": "संदर्भ",
+  "footer.howItWorks": "हे कसे काम करते",
+  "footer.privacy": "गोपनीयता",
+  "footer.terms": "वापराच्या अटी",
+  "footer.disclaimer": "अस्वीकरण",
+  "footer.contact": "संपर्क",
+  "footer.constitution": "भारताचे संविधान",
+  "footer.indiaCode": "इंडिया कोड",
+  "footer.apiDocs": "API दस्तऐवज",
+  "footer.aidTitle": "मोफत कायदेशीर मदत हा तुमचा हक्क आहे",
+  "footer.aidCall": "15100 वर कॉल करा — नालसा हेल्पलाइन",
+  "footer.openSource": "ओपन सोर्स",
+  "footer.noAccount": "खात्याची गरज नाही",
+  "footer.builtFor": "भारतासाठी तयार केले",
 };
 
 const gu: Dict = {
@@ -470,6 +543,26 @@ const gu: Dict = {
   "auth.orContinue": "અથવા આની સાથે ચાલુ રાખો",
   "auth.noAccount": "ખાતું નથી?",
   "auth.signUpNow": "હમણાં સાઇન અપ કરો",
+
+  // ── Footer ── (see the note in `hi` on the two untranslated legal strings)
+  "footer.tagline": "તમે જે ભાષામાં વિચારો છો તે ભાષામાં કાનૂની માહિતી — જે તમે ચકાસી શકો.",
+  "footer.product": "સેવાઓ",
+  "footer.learn": "જાણો",
+  "footer.legalCol": "કાનૂની",
+  "footer.reference": "સંદર્ભ",
+  "footer.howItWorks": "આ કેવી રીતે કામ કરે છે",
+  "footer.privacy": "ગોપનીયતા",
+  "footer.terms": "ઉપયોગની શરતો",
+  "footer.disclaimer": "અસ્વીકરણ",
+  "footer.contact": "સંપર્ક",
+  "footer.constitution": "ભારતનું બંધારણ",
+  "footer.indiaCode": "ઇન્ડિયા કોડ",
+  "footer.apiDocs": "API દસ્તાવેજ",
+  "footer.aidTitle": "મફત કાનૂની સહાય તમારો અધિકાર છે",
+  "footer.aidCall": "15100 પર કૉલ કરો — NALSA હેલ્પલાઇન",
+  "footer.openSource": "ઓપન સોર્સ",
+  "footer.noAccount": "ખાતાની જરૂર નથી",
+  "footer.builtFor": "ભારત માટે બનાવેલ",
 };
 
 const ta: Dict = {
@@ -582,6 +675,26 @@ const ta: Dict = {
   "auth.orContinue": "அல்லது இதன் மூலம் தொடரவும்",
   "auth.noAccount": "கணக்கு இல்லையா?",
   "auth.signUpNow": "இப்போது பதிவு செய்யவும்",
+
+  // ── Footer ── (see the note in `hi` on the two untranslated legal strings)
+  "footer.tagline": "நீங்கள் சிந்திக்கும் மொழியில் சட்டத் தகவல் — நீங்கள் சரிபார்க்கக்கூடியது.",
+  "footer.product": "சேவைகள்",
+  "footer.learn": "அறிக",
+  "footer.legalCol": "சட்டம்",
+  "footer.reference": "குறிப்பு",
+  "footer.howItWorks": "இது எப்படி வேலை செய்கிறது",
+  "footer.privacy": "தனியுரிமை",
+  "footer.terms": "பயன்பாட்டு விதிமுறைகள்",
+  "footer.disclaimer": "பொறுப்புத் துறப்பு",
+  "footer.contact": "தொடர்பு",
+  "footer.constitution": "இந்திய அரசியலமைப்பு",
+  "footer.indiaCode": "இந்தியா கோட்",
+  "footer.apiDocs": "API ஆவணங்கள்",
+  "footer.aidTitle": "இலவச சட்ட உதவி உங்கள் உரிமை",
+  "footer.aidCall": "15100 ஐ அழைக்கவும் — NALSA உதவி எண்",
+  "footer.openSource": "திறந்த மூலம்",
+  "footer.noAccount": "கணக்கு தேவையில்லை",
+  "footer.builtFor": "இந்தியாவுக்காக உருவாக்கப்பட்டது",
 };
 
 const te: Dict = {
@@ -694,6 +807,26 @@ const te: Dict = {
   "auth.orContinue": "లేదా దీనితో కొనసాగండి",
   "auth.noAccount": "ఖాతా లేదా?",
   "auth.signUpNow": "ఇప్పుడే సైన్ అప్ చేయండి",
+
+  // ── Footer ── (see the note in `hi` on the two untranslated legal strings)
+  "footer.tagline": "మీరు ఆలోచించే భాషలో న్యాయ సమాచారం — మీరు తనిఖీ చేయగలిగేది.",
+  "footer.product": "సేవలు",
+  "footer.learn": "తెలుసుకోండి",
+  "footer.legalCol": "చట్టపరమైన",
+  "footer.reference": "సూచన",
+  "footer.howItWorks": "ఇది ఎలా పనిచేస్తుంది",
+  "footer.privacy": "గోప్యత",
+  "footer.terms": "వినియోగ నిబంధనలు",
+  "footer.disclaimer": "నిరాకరణ",
+  "footer.contact": "సంప్రదించండి",
+  "footer.constitution": "భారత రాజ్యాంగం",
+  "footer.indiaCode": "ఇండియా కోడ్",
+  "footer.apiDocs": "API పత్రాలు",
+  "footer.aidTitle": "ఉచిత న్యాయ సహాయం మీ హక్కు",
+  "footer.aidCall": "15100 కు కాల్ చేయండి — NALSA హెల్ప్‌లైన్",
+  "footer.openSource": "ఓపెన్ సోర్స్",
+  "footer.noAccount": "ఖాతా అవసరం లేదు",
+  "footer.builtFor": "భారతదేశం కోసం నిర్మించబడింది",
 };
 
 const bn: Dict = {
@@ -806,6 +939,26 @@ const bn: Dict = {
   "auth.orContinue": "অথবা এটি দিয়ে চালিয়ে যান",
   "auth.noAccount": "অ্যাকাউন্ট নেই?",
   "auth.signUpNow": "এখনই সাইন আপ করুন",
+
+  // ── Footer ── (see the note in `hi` on the two untranslated legal strings)
+  "footer.tagline": "আপনি যে ভাষায় ভাবেন সেই ভাষায় আইনি তথ্য — যা আপনি যাচাই করতে পারেন।",
+  "footer.product": "পরিষেবা",
+  "footer.learn": "জানুন",
+  "footer.legalCol": "আইনি",
+  "footer.reference": "রেফারেন্স",
+  "footer.howItWorks": "এটি কীভাবে কাজ করে",
+  "footer.privacy": "গোপনীয়তা",
+  "footer.terms": "ব্যবহারের শর্তাবলী",
+  "footer.disclaimer": "দাবিত্যাগ",
+  "footer.contact": "যোগাযোগ",
+  "footer.constitution": "ভারতের সংবিধান",
+  "footer.indiaCode": "ইন্ডিয়া কোড",
+  "footer.apiDocs": "API নথি",
+  "footer.aidTitle": "বিনামূল্যে আইনি সহায়তা আপনার অধিকার",
+  "footer.aidCall": "15100 নম্বরে কল করুন — NALSA হেল্পলাইন",
+  "footer.openSource": "ওপেন সোর্স",
+  "footer.noAccount": "অ্যাকাউন্টের প্রয়োজন নেই",
+  "footer.builtFor": "ভারতের জন্য তৈরি",
 };
 
 const kn: Dict = {
@@ -918,6 +1071,26 @@ const kn: Dict = {
   "auth.orContinue": "ಅಥವಾ ಇದರೊಂದಿಗೆ ಮುಂದುವರಿಯಿರಿ",
   "auth.noAccount": "ಖಾತೆ ಇಲ್ಲವೇ?",
   "auth.signUpNow": "ಈಗಲೇ ಸೈನ್ ಅಪ್ ಮಾಡಿ",
+
+  // ── Footer ── (see the note in `hi` on the two untranslated legal strings)
+  "footer.tagline": "ನೀವು ಯೋಚಿಸುವ ಭಾಷೆಯಲ್ಲಿ ಕಾನೂನು ಮಾಹಿತಿ — ನೀವು ಪರಿಶೀಲಿಸಬಹುದಾದದ್ದು.",
+  "footer.product": "ಸೇವೆಗಳು",
+  "footer.learn": "ತಿಳಿಯಿರಿ",
+  "footer.legalCol": "ಕಾನೂನು",
+  "footer.reference": "ಉಲ್ಲೇಖ",
+  "footer.howItWorks": "ಇದು ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ",
+  "footer.privacy": "ಗೌಪ್ಯತೆ",
+  "footer.terms": "ಬಳಕೆಯ ನಿಯಮಗಳು",
+  "footer.disclaimer": "ಹಕ್ಕು ನಿರಾಕರಣೆ",
+  "footer.contact": "ಸಂಪರ್ಕ",
+  "footer.constitution": "ಭಾರತದ ಸಂವಿಧಾನ",
+  "footer.indiaCode": "ಇಂಡಿಯಾ ಕೋಡ್",
+  "footer.apiDocs": "API ದಾಖಲೆಗಳು",
+  "footer.aidTitle": "ಉಚಿತ ಕಾನೂನು ನೆರವು ನಿಮ್ಮ ಹಕ್ಕು",
+  "footer.aidCall": "15100 ಗೆ ಕರೆ ಮಾಡಿ — NALSA ಸಹಾಯವಾಣಿ",
+  "footer.openSource": "ಓಪನ್ ಸೋರ್ಸ್",
+  "footer.noAccount": "ಖಾತೆ ಅಗತ್ಯವಿಲ್ಲ",
+  "footer.builtFor": "ಭಾರತಕ್ಕಾಗಿ ನಿರ್ಮಿಸಲಾಗಿದೆ",
 };
 
 export const TRANSLATIONS: Record<LocaleCode, Dict> = {

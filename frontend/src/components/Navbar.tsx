@@ -50,7 +50,13 @@ export function Navbar() {
   }, [menuOpen]);
 
   return (
-    <nav className="w-full bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50">
+    // `viewTransitionName` lifts the navbar out of the page snapshot during a
+    // route change, so the content transitions underneath it while it stays
+    // put. See the view-transition rules in globals.css.
+    <nav
+      style={{ viewTransitionName: "site-header" }}
+      className="w-full bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50"
+    >
       <div className="px-4 sm:px-6 py-4 flex items-center justify-between gap-3 max-w-7xl mx-auto">
         {/* Left: Logo */}
         <Link href="/" className="flex items-center gap-3 group shrink-0">

@@ -160,8 +160,15 @@
   100% { transform: translate(0px, 0px) scale(1); }
 }
 
+/* `both` rather than `forwards` so the from-state (opacity 0) is held during
+   `animation-delay` by the stylesheet itself. Callers used to pair this class
+   with an inline `style={{ opacity: 0 }}` to get that effect, which fails in
+   the worst possible direction: an inline style survives a stylesheet that
+   never loads, so a CSS failure left the text permanently invisible instead of
+   merely unanimated. With the initial state in the class, losing the CSS loses
+   the animation and nothing else. */
 .animate-fade-in-up {
-  animation: fadeInUp 0.6s ease-out forwards;
+  animation: fadeInUp 0.6s ease-out both;
 }
 
 .animate-fade-in-overlay {
@@ -708,6 +715,16 @@ h1, h2, h3 {
   .chatbot-fab-ring {
     display: none;
   }
+
+  /* View transitions live outside the document tree, so the `*` rule above
+     never reaches them. Without these three selectors a reader who asked for
+     less motion still gets every page slide. */
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0s !important;
+  }
 }
 
 /* ── Risk profile meter ────────────────────────────────────────────────
@@ -726,6 +743,181 @@ h1, h2, h3 {
   }
   to {
     transform: scaleX(1);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   VIEW TRANSITIONS
+   ═══════════════════════════════════════════════════════════════════
+
+   A route change replaces the whole page at once: one set of elements
+   disappears and another appears, with nothing connecting them. These rules
+   give navigation continuity — the old page yields, the new one arrives, and
+   the chrome the reader is using to navigate stays exactly where it is.
+
+   Timing is deliberately asymmetric. The outgoing page leaves fast (140ms) so
+   it stops competing for attention; the incoming page arrives more slowly
+   (300ms) with a short delay, so the reader's eye lands on content that is
+   already settling rather than content racing past it.
+
+   Browsers without the View Transitions API skip all of this and navigate
+   normally. Nothing here is load-bearing. */
+
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes vt-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes vt-drift {
+  from { transform: translateY(14px); }
+  to   { transform: none; }
+}
+@keyframes vt-slide {
+  from { transform: translateX(var(--vt-offset, 0)); }
+  to   { transform: none; }
+}
+
+::view-transition-old(.page-exit) {
+  animation: 140ms cubic-bezier(0.4, 0, 1, 1) both vt-fade-out;
+}
+::view-transition-new(.page-enter) {
+  animation:
+    300ms cubic-bezier(0.16, 1, 0.3, 1) 110ms both vt-fade-in,
+    420ms cubic-bezier(0.16, 1, 0.3, 1) both vt-drift;
+}
+
+/* ── Directional navigation ───
+   Horizontal direction encodes history: content leaving to the left means
+   forward, to the right means back. Used only where the hierarchy is
+   unambiguous — a "back to the toolkit" link knows which way it is going;
+   a top-level nav item does not, and gets the plain crossfade instead. */
+::view-transition-old(.nav-forward) {
+  --vt-offset: -56px;
+  animation:
+    140ms ease-in both vt-fade-out,
+    400ms cubic-bezier(0.16, 1, 0.3, 1) both vt-slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --vt-offset: 56px;
+  animation:
+    300ms ease-out 110ms both vt-fade-in,
+    400ms cubic-bezier(0.16, 1, 0.3, 1) both vt-slide;
+}
+::view-transition-old(.nav-back) {
+  --vt-offset: 56px;
+  animation:
+    140ms ease-in both vt-fade-out,
+    400ms cubic-bezier(0.16, 1, 0.3, 1) both vt-slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --vt-offset: -56px;
+  animation:
+    300ms ease-out 110ms both vt-fade-in,
+    400ms cubic-bezier(0.16, 1, 0.3, 1) both vt-slide;
+}
+
+/* ── Anchoring the chrome ───
+   The navbar is how the reader moves around. If it slides with the content
+   they lose their one fixed reference point and the whole viewport appears to
+   move, which reads as the app breaking rather than as a transition. Pulling
+   it into its own snapshot and refusing to animate it keeps it still. The
+   `display: none` on the old snapshot prevents a flash of two stacked navbars
+   mid-transition. */
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   AMBIENT MOTION
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* A slow drifting mesh behind the hero. Large, soft and low-contrast: it
+   should register as depth rather than as something moving. */
+@keyframes aurora {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33%      { transform: translate3d(3%, -4%, 0) scale(1.08); }
+  66%      { transform: translate3d(-3%, 3%, 0) scale(0.96); }
+}
+.animate-aurora {
+  animation: aurora 22s ease-in-out infinite;
+}
+
+/* The live-status dot. A heartbeat, not a strobe. */
+@keyframes live-pulse {
+  0%   { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  70%  { box-shadow: 0 0 0 7px transparent; opacity: 0.85; }
+  100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
+}
+.animate-live-pulse {
+  animation: live-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Gradient text that moves slowly enough to notice only on a second look. */
+@keyframes gradient-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+.animate-gradient-pan {
+  background-size: 220% auto;
+  animation: gradient-pan 9s ease-in-out infinite;
+}
+
+/* Continuous horizontal drift for the language strip. Paused on hover so a
+   reader can actually look for their own language. */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 38s linear infinite;
+}
+.animate-marquee:hover,
+.marquee-track:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+/* A light sweep across a card on hover. */
+@keyframes sheen {
+  from { transform: translateX(-120%) skewX(-18deg); }
+  to   { transform: translateX(320%) skewX(-18deg); }
+}
+.group:hover .animate-sheen {
+  animation: sheen 900ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Typing caret for the answer preview. */
+@keyframes caret {
+  0%, 45%   { opacity: 1; }
+  55%, 100% { opacity: 0; }
+}
+.animate-caret {
+  animation: caret 1.1s steps(1) infinite;
+}
+
+/* A card that rises to meet the cursor. Kept small — 3px reads as responsive,
+   10px reads as a toy. */
+.lift {
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.35s ease;
+}
+.lift:hover {
+  transform: translateY(-3px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lift:hover {
+    transform: none;
   }
 }
 
