@@ -32,6 +32,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.console import use_utf8_output  # noqa: E402  (needs the path above)
+
 #: Below this the answer was only just admitted; worth watching.
 WEAK_SCORE = 0.35
 
@@ -54,6 +56,10 @@ def load(path: Path) -> list[dict]:
 
 
 def main() -> int:
+    # The report quotes the questions people actually asked, in the script they
+    # asked them in.
+    use_utf8_output()
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--log",
