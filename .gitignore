@@ -54,3 +54,9 @@ PR_DESCRIPTION.md
 Nyaysetu-Carousel-*
 *-carousel.pdf
 shots/
+
+# ── Claude Code local config and worktrees ───────────────────
+# Agent settings and launch config are per-machine, and .claude/worktrees
+# holds live git worktrees that must never be committed into the repo they
+# are checked out from.
+.claude/
