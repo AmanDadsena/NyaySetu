@@ -934,6 +934,68 @@ h1, h2, h3 {
    clerk reads them. And nothing that carries meaning is allowed to break
    across a page: a deadline whose date lands on the next sheet has lost
    the part that mattered. */
+/* ── Rotating border beam ─── */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes border-beam {
+  from { --angle: 0deg; }
+  to { --angle: 360deg; }
+}
+.border-beam {
+  position: relative;
+  overflow: hidden;
+}
+.border-beam::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--angle), transparent 60%, oklch(0.75 0.15 55) 78%, oklch(0.65 0.20 280) 92%, transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: border-beam 4s linear infinite;
+  pointer-events: none;
+}
+
+/* ── Floating sparkles ─── */
+@keyframes sparkle-float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.6; }
+  25% { transform: translateY(-12px) rotate(90deg); opacity: 1; }
+  50% { transform: translateY(-6px) rotate(180deg); opacity: 0.4; }
+  75% { transform: translateY(-18px) rotate(270deg); opacity: 0.8; }
+}
+
+/* ── Glow pulse for avatars/icons ─── */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px 2px oklch(0.75 0.15 55 / 0.3); }
+  50% { box-shadow: 0 0 20px 6px oklch(0.75 0.15 55 / 0.5); }
+}
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* ── Glass card utility ─── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* ── Smooth sidebar transition ─── */
+.sidebar-transition {
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @media print {
   /* Ink is the user's, and a saved PDF that reproduces a dark card is
      harder to read after photocopying, which is what happens to most of

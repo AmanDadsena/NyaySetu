@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
+import { motion } from "framer-motion";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -25,6 +26,14 @@ export function Navbar() {
   const t = useT();
   const { user, ready, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Close the drawer on navigation — otherwise it stays open over the new page.
   useEffect(() => {
@@ -55,7 +64,12 @@ export function Navbar() {
     // put. See the view-transition rules in globals.css.
     <nav
       style={{ viewTransitionName: "site-header" }}
-      className="w-full bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50"
+      className={cn(
+        "w-full sticky top-0 z-50 transition-all duration-300",
+        scrolled 
+          ? "bg-white/80 backdrop-blur-2xl border-b border-gray-200 shadow-sm" 
+          : "bg-white/50 backdrop-blur-md border-b border-transparent"
+      )}
     >
       <div className="px-4 sm:px-6 py-4 flex items-center justify-between gap-3 max-w-7xl mx-auto">
         {/* Left: Logo */}
@@ -77,13 +91,20 @@ export function Navbar() {
               href={item.href}
               aria-current={pathname === item.href ? "page" : undefined}
               className={cn(
-                "text-sm font-medium transition-colors whitespace-nowrap",
+                "relative text-sm font-medium transition-colors whitespace-nowrap py-2",
                 pathname === item.href
                   ? "text-slate-900"
                   : "text-gray-600 hover:text-slate-900",
               )}
             >
               {t(item.key)}
+              {pathname === item.href && (
+                <motion.div
+                  layoutId="navbar-active-underline"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500 rounded-full"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
             </Link>
           ))}
         </div>
@@ -124,7 +145,7 @@ export function Navbar() {
               </Link>
               <Link
                 href="/register"
-                className="bg-black text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-gray-800 shadow-sm transition-colors whitespace-nowrap"
+                className="bg-black text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-gray-800 shadow-sm transition-all active:scale-[0.97] whitespace-nowrap"
               >
                 {t("nav.register")}
               </Link>
@@ -160,8 +181,11 @@ export function Navbar() {
             onClick={() => setMenuOpen(false)}
             className="fixed inset-0 top-[73px] z-40 bg-slate-900/20 backdrop-blur-sm md:hidden"
           />
-          <div
+          <motion.div
             id="mobile-nav"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
             className="absolute inset-x-0 top-full z-50 border-b border-gray-100 bg-white shadow-lg md:hidden"
           >
             <div className="flex flex-col px-4 py-3">
@@ -210,7 +234,7 @@ export function Navbar() {
                     </Link>
                     <Link
                       href="/register"
-                      className="rounded-full bg-black px-5 py-3 text-center text-base font-medium text-white transition-colors hover:bg-gray-800"
+                      className="rounded-full bg-black px-5 py-3 text-center text-base font-medium text-white transition-all active:scale-[0.97] hover:bg-gray-800"
                     >
                       {t("nav.register")}
                     </Link>
@@ -218,7 +242,7 @@ export function Navbar() {
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         </>
       )}
     </nav>
