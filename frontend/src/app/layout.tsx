@@ -2,14 +2,12 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
 import { Chatbot } from "@/components/Chatbot";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { LOCALE_COOKIE, normalizeLocale } from "@/lib/i18n/locales";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { AuthGateProvider } from "@/lib/auth/AuthGate";
-import { PageTransition } from "@/components/motion/PageTransition";
-import { Footer } from "@/components/Footer";
+import { AppLayout } from "@/components/AppLayout";
 
 const fontSans = Inter({
   subsets: ["latin"],
@@ -66,16 +64,7 @@ export default async function RootLayout({
         <LanguageProvider initialLocale={locale}>
           <AuthProvider>
             <AuthGateProvider>
-              <Navbar />
-              {/* `flex-1` keeps a short page's footer at the bottom of the
-                  viewport rather than floating halfway up it. */}
-              <div className="flex-1">
-                <PageTransition>{children}</PageTransition>
-              </div>
-              {/* Outside the transition, like the navbar: the footer is chrome,
-                  and chrome that re-animates on every navigation draws the eye
-                  to the wrong end of the page. */}
-              <Footer />
+              <AppLayout>{children}</AppLayout>
               <Chatbot />
             </AuthGateProvider>
           </AuthProvider>

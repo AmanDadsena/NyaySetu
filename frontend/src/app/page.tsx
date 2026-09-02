@@ -40,6 +40,7 @@ import { LiveStatus } from "@/components/LiveStatus";
 import { AnswerPreview } from "@/components/AnswerPreview";
 import { Reveal } from "@/components/motion/Reveal";
 import { CountUp } from "@/components/motion/CountUp";
+import { motion } from "framer-motion";
 import { LOCALE_LIST } from "@/lib/i18n/locales";
 import {
   CORPUS_STATS,
@@ -417,31 +418,38 @@ export default function Home() {
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {TOOLS.map((tool, i) => (
               <Reveal key={tool.name} delay={(i % 3) * 0.08}>
-                <Link
-                  href="/toolkit"
-                  transitionTypes={["nav-forward"]}
-                  className="lift group relative block h-full overflow-hidden rounded-3xl border border-gray-200 bg-white p-7 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5"
+                <motion.div
+                  whileHover={{ scale: 1.02, y: -4 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="h-full"
                 >
-                  {/* Light sweep on hover */}
-                  <span
-                    aria-hidden="true"
-                    className="animate-sheen pointer-events-none absolute inset-y-0 -left-full w-1/2 bg-gradient-to-r from-transparent via-white/60 to-transparent"
-                  />
-                  <span
-                    className={`mb-5 flex h-12 w-12 items-center justify-center rounded-2xl ${tool.accent}`}
+                  <Link
+                    href="/toolkit"
+                    transitionTypes={["nav-forward"]}
+                    className="lift group relative block h-full overflow-hidden rounded-3xl border border-gray-200 bg-white p-7 shadow-sm transition-all hover:border-amber-300 hover:shadow-2xl hover:shadow-amber-900/10"
                   >
-                    <tool.icon className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <h3 className="mb-2 font-serif text-xl font-semibold">
-                    {tool.name}
-                  </h3>
-                  <p className="mb-5 text-[15px] leading-relaxed text-gray-600">
-                    {tool.blurb}
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600 transition-colors group-hover:bg-slate-900 group-hover:text-white">
-                    {tool.count}
-                  </span>
-                </Link>
+                    {/* Light sweep on hover */}
+                    <span
+                      aria-hidden="true"
+                      className="animate-sheen pointer-events-none absolute inset-y-0 -left-full w-1/2 bg-gradient-to-r from-transparent via-white/60 to-transparent"
+                    />
+                    <span
+                      className={`mb-5 flex h-12 w-12 items-center justify-center rounded-2xl ${tool.accent}`}
+                    >
+                      <tool.icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <h3 className="mb-2 font-serif text-xl font-semibold text-slate-900">
+                      {tool.name}
+                    </h3>
+                    <p className="mb-5 text-[15px] leading-relaxed text-gray-600">
+                      {tool.blurb}
+                    </p>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 transition-colors group-hover:bg-slate-900 group-hover:text-white">
+                      {tool.count}
+                    </span>
+                  </Link>
+                </motion.div>
               </Reveal>
             ))}
           </div>
