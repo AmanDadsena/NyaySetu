@@ -35,6 +35,7 @@ import { VoiceButton } from "@/components/VoiceButton";
 import { SpeakButton } from "@/components/SpeakButton";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { LOCALE_LIST, normalizeLocale } from "@/lib/i18n/locales";
+import { motion } from "framer-motion";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface ClauseItem {
@@ -561,7 +562,12 @@ export default function Home() {
                   </div>
                 ) : result ? (
                   /* ── Analysis Results ── */
-                  <div className="space-y-6 animate-fade-in-up">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25, staggerChildren: 0.1 }}
+                    className="space-y-6"
+                  >
                     {/* How this analysis was produced. Worth stating plainly:
                         a reader deciding whether to trust it should know
                         whether a model was involved at all. */}
@@ -812,7 +818,7 @@ export default function Home() {
                         </p>
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                 ) : (
                   /* ── Empty state ── */
                   <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
