@@ -192,75 +192,116 @@ export default function Home() {
     <div className="bg-white font-sans text-slate-900">
       {/* ═══ HERO ═══ */}
       <section className="relative overflow-hidden px-6 pt-20 pb-24">
-        {/* Ambient mesh. Decorative, and explicitly out of the a11y tree. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-          <div className="animate-aurora absolute -top-40 -left-32 h-[34rem] w-[34rem] rounded-full bg-amber-200/35 blur-3xl" />
-          <div className="animate-aurora absolute -top-24 right-0 h-[30rem] w-[30rem] rounded-full bg-violet-200/30 blur-3xl [animation-delay:-7s]" />
-          <div className="animate-aurora absolute top-64 left-1/3 h-[26rem] w-[26rem] rounded-full bg-sky-200/25 blur-3xl [animation-delay:-14s]" />
+        {/* Floating geometric decoration */}
+        <div aria-hidden="true" className="absolute inset-0 -z-20 [mask-image:linear-gradient(to_bottom,white,transparent)]">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ccircle%20cx%3D%222%22%20cy%3D%222%22%20r%3D%221%22%20fill%3D%22%23cbd5e1%22%2F%3E%3C%2Fsvg%3E')] [background-size:20px_20px] opacity-40 animate-[spin_120s_linear_infinite_reverse] scale-150 origin-center" />
         </div>
 
-        <div className="mx-auto max-w-6xl text-center">
-          <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/70 px-4 py-1.5 text-sm font-medium text-amber-900 backdrop-blur-sm">
+        {/* Ambient mesh. Decorative, and explicitly out of the a11y tree. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 mix-blend-multiply">
+          <div className="animate-aurora absolute -top-40 -left-32 h-[34rem] w-[34rem] rounded-full bg-amber-500/40 blur-3xl" />
+          <div className="animate-aurora absolute -top-24 right-0 h-[30rem] w-[30rem] rounded-full bg-violet-300/35 blur-3xl [animation-delay:-7s]" />
+          <div className="animate-aurora absolute top-64 left-1/3 h-[26rem] w-[26rem] rounded-full bg-sky-300/30 blur-3xl [animation-delay:-14s]" />
+        </div>
+
+        <motion.div 
+          className="mx-auto max-w-6xl text-center"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: { staggerChildren: 0.15 }
+            }
+          }}
+        >
+          <motion.div 
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+            }}
+            className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/70 px-4 py-1.5 text-sm font-medium text-amber-900 backdrop-blur-sm"
+          >
             <Landmark className="h-4 w-4" aria-hidden="true" />
             Open-source legal information for India
-          </div>
+          </motion.div>
 
-          <h1
-            className="animate-fade-in-up mt-7 font-serif text-5xl leading-[1.08] font-bold tracking-tight text-balance md:text-6xl lg:text-7xl"
-            style={{ animationDelay: "0.08s" }}
+          <motion.h1
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+            }}
+            className="mt-7 font-serif text-5xl leading-[1.08] font-bold tracking-tight text-balance md:text-6xl lg:text-7xl"
           >
             The law, in the language
             <br className="hidden sm:block" /> you think in —{" "}
-            <span className="animate-gradient-pan bg-gradient-to-r from-amber-600 via-orange-500 to-amber-700 bg-clip-text text-transparent">
+            <span className="inline-flex animate-[shimmer_3s_linear_infinite] bg-[linear-gradient(110deg,#d97706,45%,#fcd34d,55%,#d97706)] bg-[length:200%_100%] bg-clip-text text-transparent">
               cited to the section.
             </span>
-          </h1>
+          </motion.h1>
 
-          <p
-            className="animate-fade-in-up mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-gray-600 md:text-xl"
-            style={{ animationDelay: "0.16s" }}
+          <motion.p
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+            }}
+            className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-gray-600 md:text-xl"
           >
             Nyaysetu answers from curated Indian statute and shows you the
             provision it used, so you can check it. Plus a toolkit for the
             deadline, the forum, the paperwork and what it all costs — no
             account, no cost.
-          </p>
+          </motion.p>
 
-          <div
-            className="animate-fade-in-up mt-9 flex flex-wrap items-center justify-center gap-3"
-            style={{ animationDelay: "0.24s" }}
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+            }}
+            className="mt-9 flex flex-wrap items-center justify-center gap-3"
           >
-            <Link
-              href="/toolkit"
-              transitionTypes={["nav-forward"]}
-              className="lift inline-flex items-center gap-2 rounded-full bg-slate-900 px-7 py-3.5 text-base font-medium text-white shadow-lg shadow-slate-900/15 hover:bg-slate-800"
-            >
-              Open the toolkit
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <Link
-              href="/how-it-works"
-              transitionTypes={["nav-forward"]}
-              className="lift inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-7 py-3.5 text-base font-medium text-slate-900 backdrop-blur-sm hover:border-gray-300"
-            >
-              How it works
-            </Link>
-          </div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
+              <Link
+                href="/toolkit"
+                transitionTypes={["nav-forward"]}
+                className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-7 py-3.5 text-base font-medium text-white shadow-lg shadow-slate-900/15 hover:bg-slate-800"
+              >
+                Open the toolkit
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
+              <Link
+                href="/how-it-works"
+                transitionTypes={["nav-forward"]}
+                className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-7 py-3.5 text-base font-medium text-slate-900 backdrop-blur-sm hover:border-gray-300"
+              >
+                How it works
+              </Link>
+            </motion.div>
+          </motion.div>
 
-          <div
-            className="animate-fade-in-up mt-9"
-            style={{ animationDelay: "0.32s" }}
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+            }}
+            className="mt-9"
           >
             <LiveStatus />
-          </div>
+          </motion.div>
 
-          <div
-            className="animate-fade-in-up mt-16"
-            style={{ animationDelay: "0.4s" }}
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+            }}
+            className="mt-16"
           >
             <AnswerPreview />
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* ═══ HOW IT WORKS ═══ */}
@@ -593,7 +634,20 @@ export default function Home() {
       {/* ═══ CTA ═══ */}
       <section className="px-6 pb-24">
         <Reveal>
-          <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2.5rem] border border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50/60 to-white p-12 text-center md:p-16">
+          <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-amber-50 via-orange-50/60 to-white p-12 text-center md:p-16">
+            {/* Border beam effect */}
+            <div className="absolute inset-0 -z-10 rounded-[2.5rem] p-[1px] overflow-hidden">
+              <div className="absolute inset-[-100%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg_at_50%_50%,#fef3c7_0%,#fbbf24_50%,#fef3c7_100%)]" />
+              <div className="absolute inset-[1px] rounded-[calc(2.5rem-1px)] bg-white/80 backdrop-blur-xl" />
+            </div>
+
+            {/* Floating particles inside */}
+            <div aria-hidden="true" className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
+              <div className="absolute top-1/4 left-1/4 h-2 w-2 rounded-full bg-amber-400/50 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" />
+              <div className="absolute bottom-1/4 right-1/3 h-1.5 w-1.5 rounded-full bg-orange-400/50 animate-[ping_4s_cubic-bezier(0,0,0.2,1)_infinite_1s]" />
+              <div className="absolute top-1/2 right-1/4 h-2 w-2 rounded-full bg-amber-500/40 animate-[ping_5s_cubic-bezier(0,0,0.2,1)_infinite_2s]" />
+            </div>
+
             <div
               aria-hidden="true"
               className="animate-aurora pointer-events-none absolute -top-24 left-1/2 h-72 w-[36rem] -translate-x-1/2 rounded-full bg-amber-300/25 blur-3xl"
@@ -607,21 +661,25 @@ export default function Home() {
                 it came from.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3">
-                <Link
-                  href="/toolkit"
-                  transitionTypes={["nav-forward"]}
-                  className="lift inline-flex items-center gap-2 rounded-full bg-slate-900 px-8 py-4 text-base font-medium text-white shadow-lg shadow-slate-900/15 hover:bg-slate-800"
-                >
-                  Open the toolkit
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-                <Link
-                  href="/knowledge"
-                  transitionTypes={["nav-forward"]}
-                  className="lift inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-8 py-4 text-base font-medium text-slate-900 hover:border-slate-400"
-                >
-                  Browse the knowledge base
-                </Link>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
+                  <Link
+                    href="/toolkit"
+                    transitionTypes={["nav-forward"]}
+                    className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-8 py-4 text-base font-medium text-white shadow-lg shadow-slate-900/15 hover:bg-slate-800"
+                  >
+                    Open the toolkit
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
+                  <Link
+                    href="/knowledge"
+                    transitionTypes={["nav-forward"]}
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white/80 backdrop-blur-sm px-8 py-4 text-base font-medium text-slate-900 hover:border-slate-400"
+                  >
+                    Browse the knowledge base
+                  </Link>
+                </motion.div>
               </div>
               <p className="mt-8 inline-flex items-center gap-2 text-sm text-gray-500">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
