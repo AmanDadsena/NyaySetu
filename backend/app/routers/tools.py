@@ -23,6 +23,7 @@ from app.tools import (
     holidays,
     limitation,
     maintenance,
+    nalsa_aid,
     plan,
     stamp_duty,
     timeline,
@@ -285,3 +286,32 @@ async def offline_bundle() -> dict:
 @router.get("/calendar")
 async def calendar_status() -> dict:
     return holidays.calendar_status()
+
+
+# ── NALSA Legal Aid & Tele-Law ──────────────────────────────────────────
+class LegalAidRequest(BaseModel):
+    is_woman_or_child: bool = False
+    is_sc_st: bool = False
+    is_disabled: bool = False
+    is_industrial_workman: bool = False
+    is_in_custody: bool = False
+    is_disaster_victim: bool = False
+    annual_income: float = 0.0
+    state: str = "default"
+    court_level: str = "district"
+
+
+@router.post("/nalsa-aid")
+async def assess_nalsa_aid(request: LegalAidRequest) -> dict:
+    assessment = nalsa_aid.evaluate_legal_aid(
+        is_woman_or_child=request.is_woman_or_child,
+        is_sc_st=request.is_sc_st,
+        is_disabled=request.is_disabled,
+        is_industrial_workman=request.is_industrial_workman,
+        is_in_custody=request.is_in_custody,
+        is_disaster_victim=request.is_disaster_victim,
+        annual_income=request.annual_income,
+        state=request.state,
+        court_level=request.court_level,
+    )
+    return assessment.__dict__

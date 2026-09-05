@@ -7,6 +7,7 @@
  * a dead mic is worse than no mic for the users this is aimed at.
  */
 
+import React, { useEffect } from "react";
 import { Mic, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -21,6 +22,8 @@ interface VoiceButtonProps {
   idleLabelKey?: TranslationKey;
   /** Shown while listening, next to the button. */
   showInterim?: boolean;
+  /** Callback for parent components that display waveform or visualizer. */
+  onListeningStateChange?: (state: { isListening: boolean; interim: string; audioLevel: number }) => void;
   disabled?: boolean;
   className?: string;
 }
@@ -30,6 +33,7 @@ export function VoiceButton({
   onError,
   idleLabelKey = "voice.speak",
   showInterim = false,
+  onListeningStateChange,
   disabled = false,
   className,
 }: VoiceButtonProps) {
@@ -42,11 +46,16 @@ export function VoiceButton({
     return t("voice.noSpeech");
   };
 
-  const { isSupported, isListening, interim, toggle } = useSpeechRecognition({
+  const { isSupported, isListening, interim, audioLevel, toggle } = useSpeechRecognition({
     lang: meta.speech,
     onResult: onTranscript,
     onError: (error) => onError?.(errorMessage(error)),
   });
+
+  // Keep parent visualizer updated
+  useEffect(() => {
+    onListeningStateChange?.({ isListening, interim, audioLevel });
+  }, [isListening, interim, audioLevel, onListeningStateChange]);
 
   if (!isSupported) return null;
 

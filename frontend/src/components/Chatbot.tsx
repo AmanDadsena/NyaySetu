@@ -11,8 +11,11 @@ import {
   Scale,
   Volume2,
   VolumeX,
+  Sliders,
+  Check,
 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
+import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { PassageReader } from "@/components/PassageReader";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -90,8 +93,25 @@ export function Chatbot() {
       : String(Math.random()).slice(2),
   );
 
-  const { isSpeaking, speak, stop: stopSpeaking } = useSpeechSynthesis({
+  const {
+    isSpeaking,
+    speak,
+    stop: stopSpeaking,
+    availableVoices,
+    selectedVoice,
+    setSelectedVoice,
+    rate,
+    setRate,
+  } = useSpeechSynthesis({
     lang: meta.speech,
+  });
+
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [autoSpeakReplies, setAutoSpeakReplies] = useState(false);
+  const [listeningState, setListeningState] = useState({
+    isListening: false,
+    interim: "",
+    audioLevel: 0,
   });
 
   useEffect(() => {
@@ -209,10 +229,9 @@ export function Chatbot() {
 
         if (!full.trim()) throw new Error("Empty response");
 
-        // A question asked by voice gets its answer read back, closing the loop
-        // for someone who can't comfortably read the screen. Speak only once
-        // the full text has arrived, so the voice isn't chasing the stream.
-        if (spokenQuestionRef.current) {
+        // A question asked by voice (or when auto-speak is on) gets its answer read back,
+        // closing the loop for someone who can't comfortably read the screen.
+        if (spokenQuestionRef.current || autoSpeakReplies) {
           setSpeakingIndex(replyIndex);
           speak(full);
         }
@@ -297,14 +316,103 @@ export function Chatbot() {
               </div>
             </div>
 
-            <button
-              onClick={() => setIsOpen(false)}
-              className="relative z-10 p-1.5 rounded-full hover:bg-white/15 transition-colors"
-              aria-label={t("bot.close")}
-            >
-              <X className="w-4 h-4 text-white/90" />
-            </button>
+            <div className="relative z-10 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                className={`p-1.5 rounded-full transition-colors ${
+                  showVoiceSettings ? "bg-white/25 text-white" : "hover:bg-white/15 text-white/90"
+                }`}
+                title="Voice & Speech Settings"
+                aria-label="Voice & Speech Settings"
+              >
+                <Sliders className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-1.5 rounded-full hover:bg-white/15 transition-colors text-white/90"
+                aria-label={t("bot.close")}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+
+          {/* ── Voice & Speech Settings Drawer ─────────────────────── */}
+          {showVoiceSettings && (
+            <div className="bg-slate-900/95 border-b border-amber-500/20 px-4 py-3 text-xs text-slate-200 animate-fade-in backdrop-blur-md space-y-2.5 z-20">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-amber-400 flex items-center gap-1.5">
+                  <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                  Voice Assistant Settings ({meta.label})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowVoiceSettings(false)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {availableVoices.length > 0 ? (
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1">
+                    Select Voice Model / Accent:
+                  </label>
+                  <select
+                    value={selectedVoice?.voiceURI || ""}
+                    onChange={(e) => setSelectedVoice(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                  >
+                    {availableVoices.map((v) => (
+                      <option key={v.voiceURI} value={v.voiceURI}>
+                        {v.name} {v.default ? "(Default)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-400 italic">
+                  Using default system speech engine for {meta.label}.
+                </p>
+              )}
+
+              <div className="flex items-center justify-between gap-4 pt-1">
+                <div className="flex-1">
+                  <span className="text-[11px] text-slate-400 block mb-1">
+                    Speed: {rate}x
+                  </span>
+                  <div className="flex gap-1.5">
+                    {[0.8, 0.95, 1.15].map((speed) => (
+                      <button
+                        key={speed}
+                        type="button"
+                        onClick={() => setRate(speed)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                          Math.abs(rate - speed) < 0.05
+                            ? "bg-amber-500 text-slate-950 font-bold"
+                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        }`}
+                      >
+                        {speed === 0.8 ? "Clear (0.8x)" : speed === 0.95 ? "Normal" : "Brisk (1.15x)"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer select-none pt-2">
+                  <input
+                    type="checkbox"
+                    checked={autoSpeakReplies}
+                    onChange={(e) => setAutoSpeakReplies(e.target.checked)}
+                    className="rounded border-slate-700 text-amber-500 focus:ring-amber-400 w-3.5 h-3.5 bg-slate-800"
+                  />
+                  <span className="text-[11px] text-slate-300">Auto-read replies</span>
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* ── Messages ──────────────────────────────────────── */}
           <div className="flex-1 overflow-y-auto chatbot-messages px-4 py-4 space-y-3">
@@ -450,10 +558,23 @@ export function Chatbot() {
                 {voiceNotice}
               </p>
             )}
+            {/* ── Active Voice Waveform Visualizer ─────────── */}
+            {listeningState.isListening && (
+              <div className="mb-2">
+                <VoiceVisualizer
+                  isListening={listeningState.isListening}
+                  audioLevel={listeningState.audioLevel}
+                  interimText={listeningState.interim}
+                  languageName={meta.label}
+                />
+              </div>
+            )}
+
             <div className="relative flex items-center gap-2">
               <VoiceButton
                 onTranscript={(text) => sendMessage(text, { fromVoice: true })}
                 onError={setVoiceNotice}
+                onListeningStateChange={setListeningState}
                 disabled={isLoading}
               />
               <div className="relative flex flex-1 items-center">

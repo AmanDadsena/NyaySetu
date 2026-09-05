@@ -32,6 +32,7 @@ import {
   FileSearch,
   Landmark,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TimelineTool } from "@/components/toolkit/TimelineTool";
@@ -43,6 +44,7 @@ import { CitationsTool } from "@/components/toolkit/CitationsTool";
 import { StampDutyTool } from "@/components/toolkit/StampDutyTool";
 import { MaintenanceTool } from "@/components/toolkit/MaintenanceTool";
 import { CasePlanTool } from "@/components/toolkit/CasePlanTool";
+import { LegalAidTool } from "@/components/toolkit/LegalAidTool";
 import { calculateLocally, readCachedBundle, refreshBundle } from "@/lib/toolkit/offline";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -52,6 +54,7 @@ type Tab =
   | "deadline"
   | "forum"
   | "draft"
+  | "legalaid"
   | "timeline"
   | "fees"
   | "tracker"
@@ -64,6 +67,7 @@ const TABS: Tab[] = [
   "deadline",
   "forum",
   "draft",
+  "legalaid",
   "timeline",
   "fees",
   "tracker",
@@ -569,6 +573,7 @@ export default function ToolkitPage() {
     { id: "deadline", label: t("toolkit.tab.deadline"), icon: CalendarClock, blurb: t("toolkit.blurb.deadline") },
     { id: "forum", label: t("toolkit.tab.forum"), icon: MapPin, blurb: t("toolkit.blurb.forum") },
     { id: "draft", label: t("toolkit.tab.draft"), icon: FileText, blurb: t("toolkit.blurb.draft") },
+    { id: "legalaid", label: "Legal Aid & Tele-Law", icon: ShieldCheck, blurb: "Statutory Section 12 free lawyer & NALSA screener" },
     { id: "timeline", label: t("toolkit.tab.timeline"), icon: CalendarDays, blurb: t("toolkit.blurb.timeline") },
     { id: "fees", label: t("toolkit.tab.fees"), icon: IndianRupee, blurb: t("toolkit.blurb.fees") },
     { id: "tracker", label: t("toolkit.tab.tracker"), icon: BellRing, blurb: t("toolkit.blurb.tracker") },
@@ -1130,6 +1135,12 @@ export default function ToolkitPage() {
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
             />
+          </div>
+        )}
+
+        {tab === "legalaid" && (
+          <div className="animate-fade-in-up">
+            <LegalAidTool />
           </div>
         )}
 

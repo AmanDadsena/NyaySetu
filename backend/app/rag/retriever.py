@@ -407,6 +407,17 @@ class Retriever:
         `min_score` is a relevance floor: below it the engine treats the query
         as out of corpus and says so, rather than answering from a weak match.
         """
+        # Out-of-scope guard: Government job recruitment exams, hall tickets and vacancy dates
+        # are administrative schedules that vary per state/cycle. Refusing them prevents
+        # confident hallucinations on police/court recruitment questions.
+        lower_q = query.lower()
+        if any(term in lower_q for term in (
+            "recruitment exam", "police recruitment", "exam date", "admit card",
+            "hall ticket", "vacancy", "भरती परीक्षा", "नेमणूक परीक्षा", "ನೇಮಕಾತಿ ಪರೀಕ್ಷೆ",
+            "भर्ती परीक्षा", "தேர்வு தேதி", "परीक्षेची तारीख"
+        )):
+            return []
+
         tokens = expand(tokenize(query))
         if not tokens:
             return []

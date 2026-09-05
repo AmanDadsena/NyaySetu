@@ -55,8 +55,7 @@ Nyaysetu-Carousel-*
 *-carousel.pdf
 shots/
 
-# ── Claude Code local config and worktrees ───────────────────
-# Agent settings and launch config are per-machine, and .claude/worktrees
-# holds live git worktrees that must never be committed into the repo they
-# are checked out from.
+# ── Local agent config and worktrees ─────────────────────────
+# Machine-specific assistant settings, launch configurations and worktrees.
 .claude/
+

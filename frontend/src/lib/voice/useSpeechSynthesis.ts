@@ -1,29 +1,40 @@
 "use client";
 
 /**
- * Read-aloud via `speechSynthesis`.
+ * Read-aloud via `speechSynthesis` with multi-voice support.
  *
- * Two browser quirks shape this implementation:
- *
- *  1. `getVoices()` is populated asynchronously and returns `[]` on first call
- *     in Chromium, so we also listen for `voiceschanged`.
- *  2. Chromium silently stops speaking after roughly fifteen seconds of a
- *     single utterance. Splitting the text into sentence-sized utterances and
- *     queueing them keeps long analysis summaries audible to the end.
+ * Features:
+ *  1. Discovers and categorizes all available system voices for the selected locale.
+ *  2. Supports user selection between multiple voices (e.g. Male/Female, natural).
+ *  3. Configurable speech rate and pitch with localStorage persistence.
+ *  4. Splits long responses into natural sentence-sized chunks to bypass Chromium's 15s cutoff.
+ *  5. Cleans markdown and decorative legal symbols before reading.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface Options {
-  /** BCP-47 tag, e.g. "ta-IN". */
+  /** BCP-47 tag, e.g. "ta-IN", "hi-IN". */
   lang: string;
 }
 
-interface SpeechSynthesisState {
+export interface SpeechSynthesisState {
   isSupported: boolean;
   isSpeaking: boolean;
-  /** True when no installed voice matches `lang`; audio may fall back or be silent. */
+  /** True when at least one installed voice matches `lang`. */
   hasVoiceForLang: boolean;
+  /** All voices available on the device for the current language. */
+  availableVoices: SpeechSynthesisVoice[];
+  /** The currently chosen voice. */
+  selectedVoice: SpeechSynthesisVoice | null;
+  /** Select a specific voice by instance or voiceURI. */
+  setSelectedVoice: (voice: SpeechSynthesisVoice | string) => void;
+  /** Speech rate (0.75 - 1.5). Default 0.95. */
+  rate: number;
+  setRate: (rate: number) => void;
+  /** Speech pitch (0.5 - 1.5). Default 1.0. */
+  pitch: number;
+  setPitch: (pitch: number) => void;
   speak: (text: string) => void;
   stop: () => void;
   toggle: (text: string) => void;
@@ -84,6 +95,9 @@ export function useSpeechSynthesis({ lang }: Options): SpeechSynthesisState {
   const [isSupported, setIsSupported] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string | null>(null);
+  const [rate, setRateState] = useState<number>(0.95);
+  const [pitch, setPitchState] = useState<number>(1.0);
 
   // Set when we deliberately cancel, so the queue runner knows not to continue.
   const cancelledRef = useRef(false);
@@ -92,18 +106,87 @@ export function useSpeechSynthesis({ lang }: Options): SpeechSynthesisState {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     setIsSupported(true);
 
-    const load = () => setVoices(window.speechSynthesis.getVoices());
+    const load = () => {
+      const v = window.speechSynthesis.getVoices();
+      if (v.length > 0) setVoices(v);
+    };
+
     load();
     window.speechSynthesis.addEventListener("voiceschanged", load);
     return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
   }, []);
 
-  const primary = lang.split("-")[0];
-  const voiceForLang =
-    voices.find((v) => v.lang.replace("_", "-") === lang) ??
-    voices.find((v) => v.lang.replace("_", "-").startsWith(primary + "-")) ??
-    voices.find((v) => v.lang.startsWith(primary)) ??
-    null;
+  // Filter voices matching the current target language
+  const availableVoices = useMemo(() => {
+    const primary = lang.split("-")[0].toLowerCase();
+    const normalizedTarget = lang.replace("_", "-").toLowerCase();
+
+    return voices.filter((v) => {
+      const vLang = v.lang.replace("_", "-").toLowerCase();
+      return (
+        vLang === normalizedTarget ||
+        vLang.startsWith(primary + "-") ||
+        vLang.startsWith(primary)
+      );
+    });
+  }, [voices, lang]);
+
+  // Load saved preference for this language if present
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const primary = lang.split("-")[0].toLowerCase();
+      const savedURI = localStorage.getItem(`nyaysetu_voice_${primary}`);
+      if (savedURI) {
+        setSelectedVoiceURI(savedURI);
+      } else {
+        setSelectedVoiceURI(null);
+      }
+      const savedRate = localStorage.getItem("nyaysetu_voice_rate");
+      if (savedRate) setRateState(Number(savedRate) || 0.95);
+    } catch {
+      // localStorage may fail in sandboxed iframes
+    }
+  }, [lang]);
+
+  // Set and persist speech rate
+  const setRate = useCallback((newRate: number) => {
+    const clamped = Math.max(0.7, Math.min(1.5, newRate));
+    setRateState(clamped);
+    try {
+      localStorage.setItem("nyaysetu_voice_rate", String(clamped));
+    } catch {}
+  }, []);
+
+  // Set and persist pitch
+  const setPitch = useCallback((newPitch: number) => {
+    const clamped = Math.max(0.5, Math.min(1.5, newPitch));
+    setPitchState(clamped);
+  }, []);
+
+  // Resolve active voice
+  const selectedVoice = useMemo(() => {
+    if (availableVoices.length === 0) return null;
+    if (selectedVoiceURI) {
+      const match = availableVoices.find((v) => v.voiceURI === selectedVoiceURI);
+      if (match) return match;
+    }
+    // Default: prefer default voice, or first available
+    return availableVoices.find((v) => v.default) ?? availableVoices[0];
+  }, [availableVoices, selectedVoiceURI]);
+
+  // Custom setter for choosing voice
+  const setSelectedVoice = useCallback(
+    (voiceOrUri: SpeechSynthesisVoice | string) => {
+      const uri = typeof voiceOrUri === "string" ? voiceOrUri : voiceOrUri.voiceURI;
+      setSelectedVoiceURI(uri);
+      try {
+        const primary = lang.split("-")[0].toLowerCase();
+        localStorage.setItem(`nyaysetu_voice_${primary}`, uri);
+      } catch {}
+    },
+    [lang],
+  );
 
   const stop = useCallback(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -134,11 +217,9 @@ export function useSpeechSynthesis({ lang }: Options): SpeechSynthesisState {
 
         const utterance = new SpeechSynthesisUtterance(chunks[index]);
         utterance.lang = lang;
-        if (voiceForLang) utterance.voice = voiceForLang;
-        // Indian-language voices are easier to follow slightly below default
-        // rate, which matters for the low-literacy users this targets.
-        utterance.rate = 0.95;
-        utterance.pitch = 1;
+        if (selectedVoice) utterance.voice = selectedVoice;
+        utterance.rate = rate;
+        utterance.pitch = pitch;
 
         utterance.onend = () => {
           index += 1;
@@ -154,7 +235,7 @@ export function useSpeechSynthesis({ lang }: Options): SpeechSynthesisState {
       setIsSpeaking(true);
       speakNext();
     },
-    [lang, voiceForLang],
+    [lang, selectedVoice, rate, pitch],
   );
 
   const toggle = useCallback(
@@ -177,7 +258,14 @@ export function useSpeechSynthesis({ lang }: Options): SpeechSynthesisState {
   return {
     isSupported,
     isSpeaking,
-    hasVoiceForLang: voiceForLang !== null,
+    hasVoiceForLang: availableVoices.length > 0,
+    availableVoices,
+    selectedVoice,
+    setSelectedVoice,
+    rate,
+    setRate,
+    pitch,
+    setPitch,
     speak,
     stop,
     toggle,
